@@ -5,12 +5,18 @@ struct client_info
 {
     char *dirName;
     char *serverIP;
-    uint32_t portNum;
+    uint16_t portNum;
     uint16_t workerThreads;
     uint32_t bufferSize;
-    uint32_t serverPort;
+    uint16_t serverPort;
 };
 
-void printClientInfo(struct client_info *info);
+struct ip_port
+{
+    uint32_t ip;
+    uint16_t port;
+};
+
+printClientInfo(struct client_info *info);
 struct client_info *read_client_args(int argc, char **argv);
 #endif

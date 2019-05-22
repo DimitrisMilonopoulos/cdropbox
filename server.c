@@ -17,6 +17,7 @@
 #include <net/if.h>
 #include <arpa/inet.h>
 
+#include "functions.h"
 void perror_exit(char *message);
 void getIP(char *buffer);
 
@@ -52,7 +53,13 @@ int main(int argc, char **argv)
 
     if ((newsock = accept(sock, clientptr, &clientlen)) < 0)
         perror_exit("accept");
-    printf("Accepted connection \n");
+
+    char message_buffer[256];
+    if (read(newsock, message_buffer, 256) > 0)
+    {
+        printf("The message received from the client:\n %s\n", message_buffer);
+        printf("It is message type: %d\n", recogniseMessage(message_buffer));
+    }
 }
 
 void perror_exit(char *message)

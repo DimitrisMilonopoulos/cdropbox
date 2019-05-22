@@ -18,11 +18,12 @@
 
 void perror_exit(char *message);
 void getHostIP(char *);
+void getIP(char *buffer);
 
 int main(int argc, char **argv)
 {
-    char buffer[30];
-    getIP(buffer);
+    char ip_buffer[30];
+    getIP(ip_buffer);
     printf("Found your ip adress to be: %s\n", buffer);
     struct client_info *info = read_client_args(argc, argv);
     printClientInfo(info);
@@ -46,7 +47,18 @@ int main(int argc, char **argv)
     }
     if (connect(sock, serverptr, sizeof(server)) < 0)
         perror_exit(" connect ");
-    printf("CONNECTED TO %s\n", info->serverIP);
+
+    /*Send log on message to server*/
+
+    //convert the ip adress and socket to binary form for transfer
+    struct sockaddr_in myaddr;
+    inet_aton(ip_buffer, &myaddr.sin_addr);
+    uint32_t ipbinary = htonl(myaddr.sin_addr.s_addr); //network compatible
+    uint16_t portnet = htons(info->portNum);
+
+    //send the log on message to server
+    if (write(sock, "LOG_ON MA NIGGA", 16) < 0)
+        perror("write");
 }
 
 void perror_exit(char *message)
