@@ -22,7 +22,7 @@ void getHostIP(char *);
 int main(int argc, char **argv)
 {
     char buffer[30];
-    getHostIP(buffer);
+    getIP(buffer);
     printf("Found your ip adress to be: %s\n", buffer);
     struct client_info *info = read_client_args(argc, argv);
     printClientInfo(info);
@@ -72,4 +72,61 @@ void getHostIP(char *buffer)
     strcpy(buffer, inet_ntoa(((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr));
 
     close(fd);
+}
+
+void checkHostName(int hostname)
+{
+    if (hostname == -1)
+    {
+        perror("gethostname");
+        exit(1);
+    }
+}
+
+// Returns host information corresponding to host name
+void checkHostEntry(struct hostent *hostentry)
+{
+    if (hostentry == NULL)
+    {
+        perror("gethostbyname");
+        exit(1);
+    }
+}
+
+// Converts space-delimited IPv4 addresses
+// to dotted-decimal format
+void checkIPbuffer(char *IPbuffer)
+{
+    if (NULL == IPbuffer)
+    {
+        perror("inet_ntoa");
+        exit(1);
+    }
+}
+
+// Driver code
+void getIP(char *buffer)
+{
+    char hostbuffer[256];
+    char *IPbuffer;
+    struct hostent *host_entry;
+    int hostname;
+
+    // To retrieve hostname
+    hostname = gethostname(hostbuffer, sizeof(hostbuffer));
+    checkHostName(hostname);
+
+    // To retrieve host information
+    host_entry = gethostbyname(hostbuffer);
+    checkHostEntry(host_entry);
+
+    // To convert an Internet network
+    // address into ASCII string
+    IPbuffer = inet_ntoa(*((struct in_addr *)
+                               host_entry->h_addr_list[0]));
+
+    printf("Hostname: %s\n", hostbuffer);
+    printf("Host IP: %s", IPbuffer);
+
+    strcpy(buffer, IPbuffer);
 }
