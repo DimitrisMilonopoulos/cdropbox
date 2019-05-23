@@ -1,6 +1,22 @@
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
+
+#include <sys/wait.h>   /* sockets */
+#include <sys/types.h>  /* sockets */
+#include <sys/socket.h> /* sockets */
+#include <netinet/in.h> /* internet sockets */
+#include <netdb.h>      /* ge th os tb ya dd r */
+#include <unistd.h>     /* fork */
+#include <stdlib.h>     /* exit */
+#include <ctype.h>      /* toupper */
+
+/*For the IP*/
+#include <unistd.h>
+
+#include <sys/ioctl.h>
+#include <net/if.h>
+#include <arpa/inet.h>
 
 #include "info.h"
 #include "functions.h"
@@ -8,11 +24,6 @@
 char *copySubstring(char *string, int length)
 {
     //returns a substring of the original string (newly allocated)
-    if (strlen(string) < length)
-    {
-        printf("Input length bigger than strings length");
-        return NULL;
-    }
 
     char *newstring = malloc(sizeof(char) * (length + 1));
 
@@ -24,17 +35,15 @@ char *copySubstring(char *string, int length)
     return newstring;
 }
 
-int recogniseMessage(char *message)
+int recogniseMessage(char *message, int newsock)
 {
     //1: LOG_ON
     //2: GET_CLIENTS
     //3: LOG_OFF
     //0:not a valid message
-    if (strlen(message) < 6)
-    {
-        return 0;
-    }
+    int amount;
     char *substring;
+    char buffer[30];
     substring = copySubstring(message, 6);
     if (strcmp(substring, "LOG_ON") == 0)
     {
@@ -43,15 +52,24 @@ int recogniseMessage(char *message)
     }
     free(substring);
 
-    substring = copySubstring(message, 11);
+    substring = copySubstring(message, 7);
     if (substring != NULL)
     {
-        if (strcmp(substring, "GET_CLIENTS") == 0)
+        if (strcmp(substring, "GET_CLI") == 0)
         {
+            if (read(newsock, &buffer, 5) == 5)
+            {
+                if (strcmp(buffer, "ENTS") == 0)
+                {
+                    free(substring);
+                    return 2;
+                }
+            }
             free(substring);
-            return 2;
+            return 0;
         }
         free(substring);
+        return 0;
     }
 
     substring = copySubstring(message, 7);
@@ -63,5 +81,21 @@ int recogniseMessage(char *message)
             return 3;
         }
         free(substring);
+        return 0;
     }
+}
+
+uint32_t copyIP(char *buffer)
+{
+    uint32_t binaryIP;
+
+    memcpy(&binaryIP, buffer, 4);
+    return binaryIP;
+}
+
+uint32_t copyPort(char *buffer)
+{
+    uint32_t binaryPort;
+    memcpy(&binaryPort, buffer, 2);
+    return binaryPort;
 }

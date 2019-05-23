@@ -24,7 +24,7 @@ int main(int argc, char **argv)
 {
     char ip_buffer[30];
     getIP(ip_buffer);
-    printf("Found your ip adress to be: %s\n", buffer);
+    printf("Found your ip adress to be: %s\n", ip_buffer);
     struct client_info *info = read_client_args(argc, argv);
     printClientInfo(info);
 
@@ -46,7 +46,7 @@ int main(int argc, char **argv)
         printf("Error\n");
     }
     if (connect(sock, serverptr, sizeof(server)) < 0)
-        perror_exit(" connect ");
+        perror_exit("connect");
 
     /*Send log on message to server*/
 
@@ -57,7 +57,15 @@ int main(int argc, char **argv)
     uint16_t portnet = htons(info->portNum);
 
     //send the log on message to server
-    if (write(sock, "LOG_ON MA NIGGA", 16) < 0)
+    if (write(sock, "LOG_ON", 7) < 0)
+        perror("write");
+
+    //send the ip adress
+    if (write(sock, &ipbinary, 4) < 0)
+        perror("write");
+
+    //send the port number
+    if (write(sock, &portnet, 2) < 0)
         perror("write");
 }
 

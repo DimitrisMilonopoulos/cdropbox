@@ -17,6 +17,6 @@ struct ip_port
     uint16_t port;
 };
 
-printClientInfo(struct client_info *info);
+void printClientInfo(struct client_info *info);
 struct client_info *read_client_args(int argc, char **argv);
 #endif

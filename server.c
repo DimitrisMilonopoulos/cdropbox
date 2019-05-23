@@ -17,6 +17,8 @@
 #include <net/if.h>
 #include <arpa/inet.h>
 
+#include "info.h"
+#include "list.h"
 #include "functions.h"
 void perror_exit(char *message);
 void getIP(char *buffer);
@@ -33,8 +35,12 @@ int main(int argc, char **argv)
     struct sockaddr *serverptr = (struct sockaddr *)&server;
     struct sockaddr *clientptr = (struct sockaddr *)&client;
     struct hostent *rem;
-
-    port = 3002;
+    if (strcmp(argv[1], "-p") != 0)
+    {
+        fprintf(stderr, "Invalid arguments, usage: ./server -p <portNum>\n");
+        return -1;
+    }
+    port = atoi(argv[2]);
     /* Create socket */
     if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
         perror_exit("socket");
@@ -51,15 +57,58 @@ int main(int argc, char **argv)
         perror_exit(" listen ");
     printf("Listening for connections to port %d \n", port);
 
+    //create list to save the connections
+    struct HeadNode *connectionList = createQueue();
+
     if ((newsock = accept(sock, clientptr, &clientlen)) < 0)
         perror_exit("accept");
 
     char message_buffer[256];
-    if (read(newsock, message_buffer, 256) > 0)
+    int amount;
+    if ((amount = read(newsock, message_buffer, 7)) == 7)
     {
-        printf("The message received from the client:\n %s\n", message_buffer);
-        printf("It is message type: %d\n", recogniseMessage(message_buffer));
+        printf("The message received from the client of length: %d\n", amount);
+        int type = recogniseMessage(message_buffer, newsock);
+
+        switch (type)
+        {
+        case 0:
+            fprintf(stderr, "Invalid command received from client");
+            break;
+        case 1:
+            printf("LOG_ON command received: initialising the new client\n");
+            //first 7 characters of the buffer contain the log on string,
+            //the other 6 contain the ip adress and the port in binary form
+            uint32_t client_ip;
+            if ((amount = read(newsock, &client_ip, 4)) != 4)
+            {
+                printf("FATAL ERROR!\n");
+                break;
+            }
+            uint32_t client_port;
+            if ((amount = read(newsock, &client_port, 2)) != 2)
+            {
+                printf("FATAL ERROR!\n");
+                break;
+            }
+            client_ip = ntohl(client_ip);
+            client_port = ntohs(client_port);
+            printf("ip: %X\nport: %X\n", client_ip, client_port);
+            struct ip_port *entry = malloc(sizeof(struct ip_port));
+            entry->ip = client_ip;
+            entry->port = client_port;
+            InsertNode(connectionList, entry);
+            break;
+        case 2:
+            break;
+        case 3:
+            break;
+        }
     }
+    deleteList(connectionList);
+    free(connectionList);
+    close(newsock);
+    return 0;
 }
 
 void perror_exit(char *message)
