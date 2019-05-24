@@ -17,4 +17,6 @@ struct HeadNode *createQueue();
 int InsertNode(struct HeadNode *, struct ip_port *);
 int DeleteNode(struct HeadNode *, struct ip_port *);
 int deleteList(struct HeadNode *);
+void printList(struct HeadNode *headnode);
+int FindNode(struct HeadNode *headnode, struct ip_port value);
 #endif

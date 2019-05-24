@@ -67,6 +67,13 @@ int main(int argc, char **argv)
     //send the port number
     if (write(sock, &portnet, 2) < 0)
         perror("write");
+
+    // shutdown(sock, SHUT_WR);
+    // if (connect(sock, serverptr, sizeof(server)) < 0)
+    //     perror_exit("connect");
+
+    // if (write(sock, "LOG_OFF", 8) < 0)
+    //     perror("write");
 }
 
 void perror_exit(char *message)

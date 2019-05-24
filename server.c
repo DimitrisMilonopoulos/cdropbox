@@ -9,7 +9,7 @@
 #include <stdlib.h>     /* exit */
 #include <ctype.h>      /* toupper */
 #include <string.h>
-
+#include <sys/select.h>
 /*For the IP*/
 #include <unistd.h>
 
@@ -60,49 +60,114 @@ int main(int argc, char **argv)
     //create list to save the connections
     struct HeadNode *connectionList = createQueue();
 
-    if ((newsock = accept(sock, clientptr, &clientlen)) < 0)
-        perror_exit("accept");
-
+    //set the multiple file descriptors
+    fd_set active_fd_set, read_fd_set;
+    /* Initialize the set of active sockets. */
+    FD_ZERO(&active_fd_set);
+    FD_SET(sock, &active_fd_set);
     char message_buffer[256];
     int amount;
-    if ((amount = read(newsock, message_buffer, 7)) == 7)
+    while (1)
     {
-        printf("The message received from the client of length: %d\n", amount);
-        int type = recogniseMessage(message_buffer, newsock);
-
-        switch (type)
+        /* Block until input arrives on one or more active sockets. */
+        read_fd_set = active_fd_set;
+        if (select(FD_SETSIZE, &read_fd_set, NULL, NULL, NULL) < 0)
         {
-        case 0:
-            fprintf(stderr, "Invalid command received from client");
-            break;
-        case 1:
-            printf("LOG_ON command received: initialising the new client\n");
-            //first 7 characters of the buffer contain the log on string,
-            //the other 6 contain the ip adress and the port in binary form
-            uint32_t client_ip;
-            if ((amount = read(newsock, &client_ip, 4)) != 4)
+            perror("select");
+            exit(EXIT_FAILURE);
+        }
+        for (int i = 0; i < FD_SETSIZE; i++)
+        {
+            if (FD_ISSET(i, &read_fd_set))
             {
-                printf("FATAL ERROR!\n");
-                break;
+
+                if (i == sock)
+                {
+                    clientlen = sizeof(*clientptr);
+                    if ((newsock = accept(sock, clientptr, &clientlen)) < 0)
+                        perror_exit("accept");
+
+                    fprintf(stderr,
+                            "Server: connect from host %s, port %hd.\n",
+                            inet_ntoa(client.sin_addr),
+                            ntohs(client.sin_port));
+                    FD_SET(newsock, &active_fd_set);
+                }
+                else
+                {
+                    while ((amount = read(i, message_buffer, 7)) == 7)
+                    {
+                        printf("The message received from the client of length: %d\n", amount);
+                        int type = recogniseMessage(message_buffer, newsock);
+
+                        switch (type)
+                        {
+                        case 0:
+                            fprintf(stderr, "Invalid command received from client");
+                            break;
+                        case 1:
+                            printf("LOG_ON command received: initialising the new client\n");
+                            //first 7 characters of the buffer contain the log on string,
+                            //the other 6 contain the ip adress and the port in binary form
+                            uint32_t client_ip;
+                            if ((amount = read(i, &client_ip, 4)) != 4)
+                            {
+                                printf("FATAL ERROR!\n");
+                                break;
+                            }
+                            uint32_t client_port;
+                            if ((amount = read(i, &client_port, 2)) != 2)
+                            {
+                                printf("FATAL ERROR!\n");
+                                break;
+                            }
+                            client_ip = ntohl(client_ip);
+                            client_port = ntohs(client_port);
+                            printf("ip: %X\nport: %X\n", client_ip, client_port);
+                            struct ip_port *entry = malloc(sizeof(struct ip_port));
+                            entry->ip = client_ip;
+                            printf("DA CLIENT IP IS: %d\n", client_ip);
+                            entry->port = client_port;
+                            if (FindNode(connectionList, *entry))
+                            {
+                                printf("Client Already exists in the mainframe\n");
+                                free(entry);
+                            }
+                            else
+                            {
+                                InsertNode(connectionList, entry);
+                                printf("New client added\n");
+                            }
+
+                            break;
+                        case 2:
+                            break;
+                        case 3:
+                            printf("SOME NIGGA TRIED TO LOG OFF\n");
+                            //try to recognise the connection
+                            if ((rem = gethostbyaddr((char *)&client.sin_addr.s_addr, sizeof(client.sin_addr.s_addr), client.sin_family)) == NULL)
+                            {
+                                herror("gethostbyaddr");
+                                exit(1);
+                            }
+                            printf("Client trying to log off with name: %s\n", rem->h_name);
+                            struct ip_port temp;
+                            temp.ip = client.sin_addr.s_addr;
+                            printf("TEMP IP: %d\n", temp.ip);
+                            //printList(connectionList);
+                            if (DeleteNode(connectionList, &temp))
+                            {
+                                printf("Client DELETED successfully\n");
+                            }
+                            else
+                            {
+                                printf(" ERROR_IP_PORT_NOT_FOUND_IN_LIST\n");
+                            }
+                            break;
+                        }
+                    }
+                }
             }
-            uint32_t client_port;
-            if ((amount = read(newsock, &client_port, 2)) != 2)
-            {
-                printf("FATAL ERROR!\n");
-                break;
-            }
-            client_ip = ntohl(client_ip);
-            client_port = ntohs(client_port);
-            printf("ip: %X\nport: %X\n", client_ip, client_port);
-            struct ip_port *entry = malloc(sizeof(struct ip_port));
-            entry->ip = client_ip;
-            entry->port = client_port;
-            InsertNode(connectionList, entry);
-            break;
-        case 2:
-            break;
-        case 3:
-            break;
         }
     }
     deleteList(connectionList);

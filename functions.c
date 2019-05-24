@@ -68,11 +68,10 @@ int recogniseMessage(char *message, int newsock)
             free(substring);
             return 0;
         }
-        free(substring);
-        return 0;
     }
 
     substring = copySubstring(message, 7);
+    printf("DA SUBSTRING: %s\n", substring);
     if (substring != NULL)
     {
         if (strcmp(substring, "LOG_OFF") == 0)

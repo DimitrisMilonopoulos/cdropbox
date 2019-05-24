@@ -44,6 +44,21 @@ int InsertNode(struct HeadNode *headnode, struct ip_port *value)
     return 1;
 }
 
+int FindNode(struct HeadNode *headnode, struct ip_port value)
+{
+    struct Node *curr;
+    curr = headnode->head;
+    while (curr != NULL)
+    {
+        if (curr->value->ip == value.ip && curr->value->port == value.port)
+        {
+            return 1;
+        }
+        curr = curr->next;
+    }
+    return 0;
+}
+
 int DeleteNode(struct HeadNode *headnode, struct ip_port *value)
 {
     struct Node *prev;
@@ -53,7 +68,7 @@ int DeleteNode(struct HeadNode *headnode, struct ip_port *value)
 
     while (curr != NULL)
     {
-        if (curr->value->port == value->port && curr->value->ip == value->ip) //Check if this node
+        if (curr->value->ip == value->ip) //curr->value->port == value->port  //Check if this node
         {
             if (curr == headnode->head)
             {
@@ -109,4 +124,15 @@ int deleteList(struct HeadNode *headnode)
     headnode->tail = NULL;
 
     return 1;
+}
+
+void printList(struct HeadNode *headnode)
+{
+    struct Node *curr;
+    curr = headnode->head;
+    while (curr != NULL)
+    {
+        printf("item: IP: %d PORT: %d\n", curr->value->ip, curr->value->port);
+        curr = curr->next;
+    }
 }
