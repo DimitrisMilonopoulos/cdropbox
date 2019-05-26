@@ -14,8 +14,10 @@
 #include <net/if.h>
 #include <arpa/inet.h>
 
-#include "list.h"
+#include <sys/select.h> /*For the select command*/
+
 #include "info.h"
+#include "list.h"
 
 void perror_exit(char *message);
 void getHostIP(char *);
@@ -82,7 +84,14 @@ int main(int argc, char **argv)
     //send the log on message to server
     if (write(sock, "GET_CLIENTS", 12) < 0)
         perror("write");
+    //send the ip adress
+    if (write(sock, &ipbinary, 4) < 0)
+        perror("write");
 
+    //send the port number
+    if (write(sock, &portnet, 2) < 0)
+        perror("write");
+    close(sock);
     //read the response from the server
     //read the number of clients the server is going to send
     uint32_t number_of_clients;
@@ -135,6 +144,145 @@ int main(int argc, char **argv)
     // //send the port number
     // if (write(sock, &portnet, 2) < 0)
     //     perror("write");
+
+    //create the select interface for the client
+
+    //create the socket for the client
+
+    struct sockaddr_in cl_server, client;
+    struct sockaddr *cl_serverptr = (struct sockaddr *)&cl_server;
+    struct sockaddr *clientptr = (struct sockaddr *)&client;
+    struct hostent *rem;
+
+    int cl_sock;
+    /* Create socket */
+    if ((cl_sock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+        perror_exit("socket");
+
+    cl_server.sin_family = AF_INET; /* Internet domain */
+    cl_server.sin_addr.s_addr = htonl(INADDR_ANY);
+    cl_server.sin_port = htons(info->portNum); /* The given port */
+
+    /* Bind socket to address */
+    if (bind(cl_sock, cl_serverptr, sizeof(cl_server)) < 0)
+        perror_exit("bind");
+    /* Listen for connections */
+    if (listen(cl_sock, 15) < 0)
+        perror_exit(" listen ");
+    printf("Listening for connections to port %d \n", info->portNum);
+
+    fd_set active_fd_set, read_fd_set;
+    /* Initialize the set of active sockets. */
+    FD_ZERO(&active_fd_set);
+    FD_SET(cl_sock, &active_fd_set);
+    int size;
+
+    while (1)
+    {
+        /* Block until input arrives on one or more active sockets. */
+        read_fd_set = active_fd_set;
+        if (select(FD_SETSIZE, &read_fd_set, NULL, NULL, NULL) < 0)
+        {
+            perror("select");
+            exit(EXIT_FAILURE);
+        }
+
+        /* Service all the sockets with input pending. */
+        for (i = 0; i < FD_SETSIZE; ++i)
+            if (FD_ISSET(i, &read_fd_set))
+            {
+                if (i == cl_sock)
+                {
+                    /* Connection request on original socket. */
+                    int new;
+                    size = sizeof(clientptr);
+                    new = accept(cl_sock,
+                                 clientptr,
+                                 &size);
+                    if (new < 0)
+                    {
+                        perror("accept");
+                        exit(EXIT_FAILURE);
+                    }
+                    fprintf(stderr,
+                            "Server: connect from host %s, port %hd.\n",
+                            inet_ntoa(client.sin_addr),
+                            ntohs(client.sin_port));
+                    FD_SET(new, &active_fd_set);
+                }
+                else
+                {
+                    char first_char;
+                    /* Data arriving on an already-connected socket. */
+                    if (read(i, &first_char, 1) == 1)
+                    {
+                        int result = recogniseClientMessage(first_char, i);
+
+                        switch (result)
+                        {
+                        case 0:
+                            printf("Invalid command!");
+                            break;
+                        case 1: //user on command
+                            struct ip_port *newclient = malloc(sizeof(struct ip_port));
+                            if (read(i, newclient->ip, 4) != 4)
+                            {
+                                perror('read');
+                                break;
+                            }
+                            newclient->ip = htonl(newclient->ip);
+
+                            if (read(i, newclient->ip, 2) != 2)
+                            {
+                                perror('read');
+                                break;
+                            }
+                            newclient->port = htons(newclient->port);
+                            if (newclient->port == htons(portnet) && newclient->ip == htonl(ipbinary))
+                            {
+                                printf("Same client!\n");
+                                break;
+                            }
+                            InsertNode(clientList, newclient);
+                            break;
+                        case 2:
+                            struct ip_port tempclient;
+                            if (read(i, tempclient.ip, 4) != 4)
+                            {
+                                perror('read');
+                                break;
+                            }
+                            tempclient.ip = htonl(tempclient.ip);
+
+                            if (read(i, tempclient.port, 2) != 2)
+                            {
+                                perror('read');
+                                break;
+                            }
+                            tempclient.port = htons(tempclient.port);
+                            if (tempclient.port == htons(portnet) && tempclient.ip == htonl(ipbinary))
+                            {
+                                printf("Same client!\n");
+                                break;
+                            }
+                            if (DeleteNode(clientList, &tempclient))
+                            {
+                                printf("Client deleted successfully!\n");
+                            }
+                            else
+                            {
+                                printf("Client not found!\n");
+                            }
+                            break;
+                        case 3:
+                            break;
+                        case 4:
+                            break;
+                        }
+                    }
+                }
+            }
+    }
 }
 
 void perror_exit(char *message)

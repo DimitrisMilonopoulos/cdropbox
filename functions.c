@@ -92,3 +92,52 @@ uint32_t copyPort(char *buffer)
     memcpy(&binaryPort, buffer, 2);
     return binaryPort;
 }
+
+int recogniseClientMessage(char first_char, int newsock)
+{
+    //1: LOG_ON
+    //2: GET_CLIENTS
+    //3: LOG_OFF
+    //0:not a valid message
+    int amount;
+    char *substring;
+    char message[30];
+
+    //read the whole message
+    message[0] = first_char;
+    int i = 1;
+    char character;
+    do
+    {
+        if (read(newsock, &character, 1) != 1)
+        {
+            perror("read");
+            printf("Characters read: %d\n", amount);
+        }
+
+        message[i] = character;
+        i++;
+    } while (character != '\0');
+
+    if (strcmp(message, "USER_ON") == 0)
+    {
+        return 1;
+    }
+    else if (strcmp(message, "USER_OFF") == 0)
+    {
+        return 2;
+    }
+    else if (strcmp(message, "GET_FILE_LIST") == 0)
+    {
+        return 3;
+    }
+    else if (strcmp(message, "GET_FILES") == 0)
+    {
+        return 4;
+    }
+    else
+    {
+        printf(stderr, "ERROR: invalid command from client!");
+        return 0;
+    }
+}

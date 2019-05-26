@@ -138,6 +138,39 @@ int main(int argc, char **argv)
                             }
                             else
                             {
+                                uint32_t temp_ip;
+                                uint16_t temp_port;
+
+                                printf("informing fellow clients about the log on\n");
+                                struct Node *curr = connectionList->head;
+                                temp_ip = htonl(curr->value->ip);
+                                temp_port = htons(curr->value->port);
+                                struct sockaddr_in newclient;
+                                struct sockaddr *newclientptr = (struct sockaddr *)&newclient;
+
+                                while (curr != NULL)
+                                {
+                                    int client_sock;
+                                    if ((client_sock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+                                        perror_exit("socket");
+                                    /* Find server address */
+                                    newclient.sin_family = AF_INET; /* Internet domain */
+                                    newclient.sin_port = temp_port; /* Server port:used htons */
+                                    /* Initiate connection */
+                                    server.sin_addr.s_addr = temp_ip;
+                                    if (connect(client_sock, newclientptr, sizeof(newclient)) < 0)
+                                        perror_exit("connect");
+                                    if (write(client_sock, client_ip, 4) != 4)
+                                    {
+                                        perror('write');
+                                    }
+                                    if (write(client_sock, client_port, 2) != 2)
+                                    {
+                                        perror('write');
+                                    }
+                                    close(client_sock);
+                                    curr->next;
+                                }
                                 InsertNode(connectionList, entry);
                                 printf("New client added\n");
                             }
@@ -147,6 +180,21 @@ int main(int argc, char **argv)
                             printf("Sending to Client %d\n", connectionList->nitems);
                             //send files to the client
                             uint32_t numberofClients = htonl(connectionList->nitems);
+
+                            if ((amount = read(i, &client_ip, 4)) != 4)
+                            {
+                                printf("FATAL ERROR!\n");
+                                break;
+                            }
+
+                            if ((amount = read(i, &client_port, 2)) != 2)
+                            {
+                                printf("FATAL ERROR!\n");
+                                break;
+                            }
+                            client_ip = ntohl(client_ip);
+                            client_port = ntohs(client_port);
+
                             if (write(i, &numberofClients, 4) < 0)
                                 perror("write");
 
