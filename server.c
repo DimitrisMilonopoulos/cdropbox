@@ -160,6 +160,10 @@ int main(int argc, char **argv)
                                     server.sin_addr.s_addr = temp_ip;
                                     if (connect(client_sock, newclientptr, sizeof(newclient)) < 0)
                                         perror_exit("connect");
+                                    if (write(client_sock, "USER_ON", 8) != 8)
+                                    {
+                                        perror('write');
+                                    }
                                     if (write(client_sock, client_ip, 4) != 4)
                                     {
                                         perror('write');
@@ -243,6 +247,44 @@ int main(int argc, char **argv)
                             if (DeleteNode(connectionList, &temp))
                             {
                                 printf("Client DELETED successfully\n");
+                                uint32_t temp_ip;
+                                uint16_t temp_port;
+
+                                printf("informing fellow clients about the log off\n");
+                                struct Node *curr = connectionList->head;
+                                temp_ip = htonl(curr->value->ip);
+                                temp_port = htons(curr->value->port);
+                                struct sockaddr_in newclient;
+                                struct sockaddr *newclientptr = (struct sockaddr *)&newclient;
+
+                                while (curr != NULL)
+                                {
+                                    int client_sock;
+                                    if ((client_sock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+                                        perror_exit("socket");
+                                    /* Find server address */
+                                    newclient.sin_family = AF_INET; /* Internet domain */
+                                    newclient.sin_port = temp_port; /* Server port:used htons */
+                                    /* Initiate connection */
+                                    server.sin_addr.s_addr = temp_ip;
+                                    if (connect(client_sock, newclientptr, sizeof(newclient)) < 0)
+                                        perror_exit("connect");
+
+                                    if (write(client_sock, "USER_OFF", 9) != 9)
+                                    {
+                                        perror('write');
+                                    }
+                                    if (write(client_sock, client_ip, 4) != 4)
+                                    {
+                                        perror('write');
+                                    }
+                                    if (write(client_sock, client_port, 2) != 2)
+                                    {
+                                        perror('write');
+                                    }
+                                    close(client_sock);
+                                    curr->next;
+                                }
                             }
                             else
                             {
