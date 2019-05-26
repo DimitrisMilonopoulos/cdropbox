@@ -67,6 +67,8 @@ int main(int argc, char **argv)
     FD_SET(sock, &active_fd_set);
     char message_buffer[256];
     int amount;
+    uint32_t client_ip;
+    uint32_t client_port;
     while (1)
     {
         /* Block until input arrives on one or more active sockets. */
@@ -76,7 +78,7 @@ int main(int argc, char **argv)
             perror("select");
             exit(EXIT_FAILURE);
         }
-        for (int i = 0; i < FD_SETSIZE; i++)
+        for (int i = 0; i < FD_SETSIZE; ++i)
         {
             if (FD_ISSET(i, &read_fd_set))
             {
@@ -88,17 +90,18 @@ int main(int argc, char **argv)
                         perror_exit("accept");
 
                     fprintf(stderr,
-                            "Server: connect from host %s, port %hd.\n",
+                            "Server: connect from host %s, port %d.\n",
                             inet_ntoa(client.sin_addr),
-                            ntohs(client.sin_port));
+                            client.sin_port);
                     FD_SET(newsock, &active_fd_set);
                 }
                 else
                 {
-                    while ((amount = read(i, message_buffer, 7)) == 7)
+                    char first_char;
+                    if ((amount = read(i, &first_char, 1)) == 1)
                     {
-                        printf("The message received from the client of length: %d\n", amount);
-                        int type = recogniseMessage(message_buffer, newsock);
+                        printf("The message received from the client of length and first char%c: %d\n", first_char, amount);
+                        int type = recogniseMessage(first_char, i);
 
                         switch (type)
                         {
@@ -109,13 +112,13 @@ int main(int argc, char **argv)
                             printf("LOG_ON command received: initialising the new client\n");
                             //first 7 characters of the buffer contain the log on string,
                             //the other 6 contain the ip adress and the port in binary form
-                            uint32_t client_ip;
+
                             if ((amount = read(i, &client_ip, 4)) != 4)
                             {
                                 printf("FATAL ERROR!\n");
                                 break;
                             }
-                            uint32_t client_port;
+
                             if ((amount = read(i, &client_port, 2)) != 2)
                             {
                                 printf("FATAL ERROR!\n");
@@ -123,7 +126,7 @@ int main(int argc, char **argv)
                             }
                             client_ip = ntohl(client_ip);
                             client_port = ntohs(client_port);
-                            printf("ip: %X\nport: %X\n", client_ip, client_port);
+                            printf("ip: %d\nport: %d\n", client_ip, client_port);
                             struct ip_port *entry = malloc(sizeof(struct ip_port));
                             entry->ip = client_ip;
                             printf("DA CLIENT IP IS: %d\n", client_ip);
@@ -141,19 +144,53 @@ int main(int argc, char **argv)
 
                             break;
                         case 2:
+                            printf("Sending to Client %d\n", connectionList->nitems);
+                            //send files to the client
+                            uint32_t numberofClients = htonl(connectionList->nitems);
+                            if (write(i, &numberofClients, 4) < 0)
+                                perror("write");
+
+                            struct Node *curr = connectionList->head;
+                            while (curr != NULL)
+                            {
+                                printf("HI\n");
+                                client_ip = htonl(curr->value->ip);
+                                client_port = htons(curr->value->port);
+                                printf("Sending Client IP: %d client port: %d\n", curr->value->ip, curr->value->port);
+                                if (write(i, &client_ip, 4) < 0)
+                                    perror("write");
+                                if (write(i, &client_port, 2) < 0)
+                                    perror("write");
+
+                                curr = curr->next;
+                            }
+                            printf("Files sent successfully!\n");
+
                             break;
                         case 3:
                             printf("SOME NIGGA TRIED TO LOG OFF\n");
-                            //try to recognise the connection
-                            if ((rem = gethostbyaddr((char *)&client.sin_addr.s_addr, sizeof(client.sin_addr.s_addr), client.sin_family)) == NULL)
+                            // //try to recognise the connection
+                            // if ((rem = gethostbyaddr((char *)&client.sin_addr.s_addr, sizeof(client.sin_addr.s_addr), client.sin_family)) == NULL)
+                            // {
+                            //     herror("gethostbyaddr");
+                            //     exit(1);
+                            // }
+                            if ((amount = read(i, &client_ip, 4)) != 4)
                             {
-                                herror("gethostbyaddr");
-                                exit(1);
+                                printf("FATAL ERROR!\n");
+                                break;
                             }
-                            printf("Client trying to log off with name: %s\n", rem->h_name);
+                            if ((amount = read(i, &client_port, 2)) != 2)
+                            {
+                                printf("FATAL ERROR!\n");
+                                break;
+                            }
+                            client_ip = ntohl(client_ip);
+                            client_port = ntohs(client_port);
                             struct ip_port temp;
-                            temp.ip = client.sin_addr.s_addr;
-                            printf("TEMP IP: %d\n", temp.ip);
+                            temp.ip = client_ip;
+                            temp.port = client_port;
+                            printf("TEMP IP: %d, port: %d\n", temp.ip, client_port);
                             //printList(connectionList);
                             if (DeleteNode(connectionList, &temp))
                             {
@@ -166,6 +203,8 @@ int main(int argc, char **argv)
                             break;
                         }
                     }
+                    close(i);
+                    FD_CLR(i, &active_fd_set);
                 }
             }
         }

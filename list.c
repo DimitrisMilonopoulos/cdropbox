@@ -15,6 +15,7 @@ struct HeadNode *createQueue()
         return NULL;
     headnode->head = NULL;
     headnode->tail = NULL;
+    headnode->nitems = 0;
     return headnode;
 }
 
@@ -41,6 +42,7 @@ int InsertNode(struct HeadNode *headnode, struct ip_port *value)
         headnode->tail->next = newnode;
         headnode->tail = newnode;
     }
+    headnode->nitems++;
     return 1;
 }
 
@@ -68,8 +70,9 @@ int DeleteNode(struct HeadNode *headnode, struct ip_port *value)
 
     while (curr != NULL)
     {
-        if (curr->value->ip == value->ip) //curr->value->port == value->port  //Check if this node
+        if (curr->value->ip == value->ip && curr->value->port == value->port) //curr->value->port == value->port  //Check if this node
         {
+            headnode->nitems--;
             if (curr == headnode->head)
             {
                 if (curr == headnode->tail) //Only item in the list

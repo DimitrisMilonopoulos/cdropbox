@@ -1,6 +1,7 @@
 #ifndef _LIST_
 #define _LIST_
 
+#include <stdint.h>
 struct Node
 {
     struct ip_port *value;
@@ -10,6 +11,7 @@ struct HeadNode
 {
     struct Node *head;
     struct Node *tail;
+    uint32_t nitems;
 };
 
 /**Basic Queue**/

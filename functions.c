@@ -35,7 +35,7 @@ char *copySubstring(char *string, int length)
     return newstring;
 }
 
-int recogniseMessage(char *message, int newsock)
+int recogniseMessage(char first_char, int newsock)
 {
     //1: LOG_ON
     //2: GET_CLIENTS
@@ -43,43 +43,37 @@ int recogniseMessage(char *message, int newsock)
     //0:not a valid message
     int amount;
     char *substring;
-    char buffer[30];
-    substring = copySubstring(message, 6);
-    if (strcmp(substring, "LOG_ON") == 0)
+    char message[30];
+
+    //read the whole message
+    message[0] = first_char;
+    int i = 1;
+    char character;
+    do
     {
-        free(substring);
+        if (read(newsock, &character, 1) != 1)
+        {
+            perror("read");
+            printf("Characters read: %d\n", amount);
+        }
+
+        message[i] = character;
+        i++;
+    } while (character != '\0');
+    if (strcmp(message, "LOG_ON") == 0)
+    {
         return 1;
     }
-    free(substring);
-
-    substring = copySubstring(message, 7);
-    if (substring != NULL)
+    else if (strcmp(message, "LOG_OFF") == 0)
     {
-        if (strcmp(substring, "GET_CLI") == 0)
-        {
-            if (read(newsock, &buffer, 5) == 5)
-            {
-                if (strcmp(buffer, "ENTS") == 0)
-                {
-                    free(substring);
-                    return 2;
-                }
-            }
-            free(substring);
-            return 0;
-        }
+        return 3;
     }
-
-    substring = copySubstring(message, 7);
-    printf("DA SUBSTRING: %s\n", substring);
-    if (substring != NULL)
+    else if (strcmp(message, "GET_CLIENTS") == 0)
     {
-        if (strcmp(substring, "LOG_OFF") == 0)
-        {
-            free(substring);
-            return 3;
-        }
-        free(substring);
+        return 2;
+    }
+    else
+    {
         return 0;
     }
 }
