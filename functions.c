@@ -137,7 +137,7 @@ int recogniseClientMessage(char first_char, int newsock)
     }
     else
     {
-        printf(stderr, "ERROR: invalid command from client!");
+        fprintf(stderr, "ERROR: invalid command from client!");
         return 0;
     }
 }

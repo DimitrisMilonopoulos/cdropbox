@@ -6,6 +6,7 @@
 #include <netdb.h>      /* gethostbyaddr */
 #include <stdlib.h>     /* exit */
 #include <string.h>     /* strlen */
+#include <signal.h>
 
 /*For the IP*/
 #include <unistd.h>
@@ -18,10 +19,17 @@
 
 #include "info.h"
 #include "list.h"
+#include "functions.h"
 
 void perror_exit(char *message);
 void getHostIP(char *);
 void getIP(char *buffer);
+int terminate = 0;
+
+void closeClient(int signum)
+{
+    terminate = 1;
+}
 
 int main(int argc, char **argv)
 {
@@ -38,6 +46,23 @@ int main(int argc, char **argv)
     struct sockaddr *serverptr = (struct sockaddr *)&server;
     struct hostent *rem;
 
+    struct sigaction toExit = {};
+
+    toExit.sa_handler = closeClient;
+    toExit.sa_flags = SA_NODEFER;
+
+    if (sigaction(SIGINT, &toExit, NULL) == -1)
+    {
+        perror("Error in sigaction");
+        exit(EXIT_FAILURE);
+    }
+
+    if (sigaction(SIGQUIT, &toExit, NULL) == -1)
+    {
+        perror("Error in sigaction");
+        exit(EXIT_FAILURE);
+    }
+
     //create the list for the fellow clients
     struct HeadNode *clientList = createQueue();
     if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
@@ -50,6 +75,7 @@ int main(int argc, char **argv)
     {
         printf("Error\n");
     }
+    printf("The adress in uint is %d\n", server.sin_addr.s_addr);
     if (connect(sock, serverptr, sizeof(server)) < 0)
         perror_exit("connect");
 
@@ -58,8 +84,10 @@ int main(int argc, char **argv)
     //convert the ip adress and socket to binary form for transfer
     struct sockaddr_in myaddr;
     inet_aton(ip_buffer, &myaddr.sin_addr);
-    uint32_t ipbinary = htonl(myaddr.sin_addr.s_addr); //htonl(myaddr.sin_addr.s_addr); //network compatible
-    uint16_t portnet = htons(info->portNum);           //htons(info->portNum);
+    printf("The sin_addr is %u\n", myaddr.sin_addr.s_addr);
+    uint32_t ipbinary = myaddr.sin_addr.s_addr; //htonl(myaddr.sin_addr.s_addr); //network compatible
+    printf("The sin_addr is %u\n\n", ipbinary);
+    uint16_t portnet = htons(info->portNum); //htons(info->portNum);
 
     //send the log on message to server
     if (write(sock, "LOG_ON", 7) < 0)
@@ -91,9 +119,19 @@ int main(int argc, char **argv)
     //send the port number
     if (write(sock, &portnet, 2) < 0)
         perror("write");
-    close(sock);
+
     //read the response from the server
     //read the number of clients the server is going to send
+    char response[30];
+    if (read(sock, response, 12) != 12)
+    {
+        perror("read");
+    }
+
+    if (strcmp(response, "CLIENT_LIST") != 0)
+    {
+        printf("Invalid response");
+    }
     uint32_t number_of_clients;
     if (read(sock, &number_of_clients, 4) != 4)
     {
@@ -111,8 +149,8 @@ int main(int argc, char **argv)
         if (read(sock, &newclient->port, 2) != 2)
             perror("read");
         newclient->port = ntohs(newclient->port);
-        printf("New client %d new port %d\n", newclient->ip, newclient->port);
-        printf("Me %d port %d\n", ntohl(ipbinary), ntohs(portnet));
+        printf("New client %u new port %u\n", newclient->ip, newclient->port);
+        printf("Me %u port %u\n", ntohl(ipbinary), ntohs(portnet));
         if (newclient->ip == ntohl(ipbinary) && newclient->port == ntohs(portnet))
         {
             printf("Client identical\n");
@@ -127,6 +165,7 @@ int main(int argc, char **argv)
     }
 
     close(sock);
+    sock = -1;
     // shutdown(sock, SHUT_WR);
     printf("Connecting again\n");
     // if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
@@ -152,16 +191,15 @@ int main(int argc, char **argv)
     struct sockaddr_in cl_server, client;
     struct sockaddr *cl_serverptr = (struct sockaddr *)&cl_server;
     struct sockaddr *clientptr = (struct sockaddr *)&client;
-    struct hostent *rem;
 
     int cl_sock;
     /* Create socket */
     if ((cl_sock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
         perror_exit("socket");
 
-    cl_server.sin_family = AF_INET; /* Internet domain */
-    cl_server.sin_addr.s_addr = htonl(INADDR_ANY);
-    cl_server.sin_port = htons(info->portNum); /* The given port */
+    cl_server.sin_family = AF_INET;                /* Internet domain */
+    cl_server.sin_addr.s_addr = htonl(INADDR_ANY); //watch out
+    cl_server.sin_port = htons(info->portNum);     /* The given port */
 
     /* Bind socket to address */
     if (bind(cl_sock, cl_serverptr, sizeof(cl_server)) < 0)
@@ -175,8 +213,7 @@ int main(int argc, char **argv)
     /* Initialize the set of active sockets. */
     FD_ZERO(&active_fd_set);
     FD_SET(cl_sock, &active_fd_set);
-    int size;
-
+    socklen_t size;
     while (1)
     {
         /* Block until input arrives on one or more active sockets. */
@@ -186,7 +223,10 @@ int main(int argc, char **argv)
             perror("select");
             exit(EXIT_FAILURE);
         }
-
+        if (terminate)
+        {
+            break;
+        }
         /* Service all the sockets with input pending. */
         for (i = 0; i < FD_SETSIZE; ++i)
             if (FD_ISSET(i, &read_fd_set))
@@ -194,6 +234,7 @@ int main(int argc, char **argv)
                 if (i == cl_sock)
                 {
                     /* Connection request on original socket. */
+                    printf("EIIIII found a new connection!\n");
                     int new;
                     size = sizeof(clientptr);
                     new = accept(cl_sock,
@@ -205,13 +246,15 @@ int main(int argc, char **argv)
                         exit(EXIT_FAILURE);
                     }
                     fprintf(stderr,
-                            "Server: connect from host %s, port %hd.\n",
+                            "Server: connect from host %s, port %u.\n",
                             inet_ntoa(client.sin_addr),
                             ntohs(client.sin_port));
                     FD_SET(new, &active_fd_set);
                 }
                 else
                 {
+                    struct ip_port tempclient;
+                    struct ip_port *newclient;
                     char first_char;
                     /* Data arriving on an already-connected socket. */
                     if (read(i, &first_char, 1) == 1)
@@ -223,18 +266,18 @@ int main(int argc, char **argv)
                         case 0:
                             printf("Invalid command!");
                             break;
-                        case 1: //user on command
-                            struct ip_port *newclient = malloc(sizeof(struct ip_port));
-                            if (read(i, newclient->ip, 4) != 4)
+                        case 1:
+                            newclient = malloc(sizeof(struct ip_port));
+                            if (read(i, &newclient->ip, 4) != 4)
                             {
-                                perror('read');
+                                perror("read");
                                 break;
                             }
                             newclient->ip = htonl(newclient->ip);
 
-                            if (read(i, newclient->ip, 2) != 2)
+                            if (read(i, &newclient->port, 2) != 2)
                             {
-                                perror('read');
+                                perror("read");
                                 break;
                             }
                             newclient->port = htons(newclient->port);
@@ -243,23 +286,25 @@ int main(int argc, char **argv)
                                 printf("Same client!\n");
                                 break;
                             }
+                            printf("New client to insert ip: %u port %u\n", newclient->ip, newclient->port);
                             InsertNode(clientList, newclient);
+                            printf("USER ON NODE INSERTED!\n");
                             break;
                         case 2:
-                            struct ip_port tempclient;
-                            if (read(i, tempclient.ip, 4) != 4)
+                            if (read(i, &tempclient.ip, 4) != 4)
                             {
-                                perror('read');
+                                perror("read");
                                 break;
                             }
-                            tempclient.ip = htonl(tempclient.ip);
+                            tempclient.ip = ntohl(tempclient.ip);
 
-                            if (read(i, tempclient.port, 2) != 2)
+                            if (read(i, &tempclient.port, 2) != 2)
                             {
-                                perror('read');
+                                perror("read");
                                 break;
                             }
-                            tempclient.port = htons(tempclient.port);
+                            tempclient.port = ntohs(tempclient.port);
+                            printf("USER_OFF from ip: %u and port: %u\n", tempclient.ip, tempclient.port);
                             if (tempclient.port == htons(portnet) && tempclient.ip == htonl(ipbinary))
                             {
                                 printf("Same client!\n");
@@ -283,6 +328,23 @@ int main(int argc, char **argv)
                 }
             }
     }
+
+    printf("\nEXITING\n");
+    if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+        perror_exit("socket");
+    if (connect(sock, serverptr, sizeof(server)) < 0)
+        perror_exit("connect");
+
+    if (write(sock, "LOG_OFF", 8) < 0)
+        perror("write");
+
+    //send the ip adress
+    if (write(sock, &ipbinary, 4) < 0)
+        perror("write");
+
+    //send the port number
+    if (write(sock, &portnet, 2) < 0)
+        perror("write");
 }
 
 void perror_exit(char *message)

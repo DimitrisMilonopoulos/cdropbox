@@ -124,6 +124,7 @@ int main(int argc, char **argv)
                                 printf("FATAL ERROR!\n");
                                 break;
                             }
+                            close(i);
                             client_ip = ntohl(client_ip);
                             client_port = ntohs(client_port);
                             printf("ip: %d\nport: %d\n", client_ip, client_port);
@@ -143,37 +144,47 @@ int main(int argc, char **argv)
 
                                 printf("informing fellow clients about the log on\n");
                                 struct Node *curr = connectionList->head;
-                                temp_ip = htonl(curr->value->ip);
-                                temp_port = htons(curr->value->port);
+
                                 struct sockaddr_in newclient;
                                 struct sockaddr *newclientptr = (struct sockaddr *)&newclient;
-
+                                printf("Going to inform fellow clients!\n");
+                                printf("The client_ip is %u and client_port %u\n\n", client_ip, client_port);
+                                client_ip = htonl(client_ip);
+                                client_port = htons(client_port);
                                 while (curr != NULL)
                                 {
+                                    printf("The IP VALUE TO CONNECT IS %u PORT: %u\n", curr->value->ip, curr->value->port);
+                                    temp_ip = htonl(curr->value->ip);
+                                    temp_port = htons(curr->value->port);
                                     int client_sock;
+                                    printf("Trying to connect!\n");
                                     if ((client_sock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
                                         perror_exit("socket");
                                     /* Find server address */
                                     newclient.sin_family = AF_INET; /* Internet domain */
                                     newclient.sin_port = temp_port; /* Server port:used htons */
                                     /* Initiate connection */
-                                    server.sin_addr.s_addr = temp_ip;
+                                    struct in_addr temp_in = {};
+                                    temp_in.s_addr = temp_ip;
+                                    newclient.sin_addr = temp_in;
+                                    printf("The adress in uint is %d\n", newclient.sin_addr.s_addr);
                                     if (connect(client_sock, newclientptr, sizeof(newclient)) < 0)
                                         perror_exit("connect");
+                                    printf("Connected Successfully!\n");
                                     if (write(client_sock, "USER_ON", 8) != 8)
                                     {
-                                        perror('write');
+                                        perror("write");
                                     }
-                                    if (write(client_sock, client_ip, 4) != 4)
+                                    if (write(client_sock, &client_ip, 4) != 4)
                                     {
-                                        perror('write');
+                                        perror("write");
                                     }
-                                    if (write(client_sock, client_port, 2) != 2)
+                                    if (write(client_sock, &client_port, 2) != 2)
                                     {
-                                        perror('write');
+                                        perror("write");
                                     }
                                     close(client_sock);
-                                    curr->next;
+                                    curr = curr->next;
                                 }
                                 InsertNode(connectionList, entry);
                                 printf("New client added\n");
@@ -199,6 +210,11 @@ int main(int argc, char **argv)
                             client_ip = ntohl(client_ip);
                             client_port = ntohs(client_port);
 
+                            if (write(i, "CLIENT_LIST", 12) != 12)
+                            {
+                                perror("write");
+                            }
+
                             if (write(i, &numberofClients, 4) < 0)
                                 perror("write");
 
@@ -208,7 +224,7 @@ int main(int argc, char **argv)
                                 printf("HI\n");
                                 client_ip = htonl(curr->value->ip);
                                 client_port = htons(curr->value->port);
-                                printf("Sending Client IP: %d client port: %d\n", curr->value->ip, curr->value->port);
+                                printf("Sending Client IP: %u client port: %u\n", curr->value->ip, curr->value->port);
                                 if (write(i, &client_ip, 4) < 0)
                                     perror("write");
                                 if (write(i, &client_port, 2) < 0)
@@ -242,7 +258,9 @@ int main(int argc, char **argv)
                             struct ip_port temp;
                             temp.ip = client_ip;
                             temp.port = client_port;
-                            printf("TEMP IP: %d, port: %d\n", temp.ip, client_port);
+                            client_ip = htonl(client_ip);
+                            client_port = htons(client_port);
+                            printf("TEMP IP: %u, port: %u\n", temp.ip, temp.port);
                             //printList(connectionList);
                             if (DeleteNode(connectionList, &temp))
                             {
@@ -252,13 +270,17 @@ int main(int argc, char **argv)
 
                                 printf("informing fellow clients about the log off\n");
                                 struct Node *curr = connectionList->head;
-                                temp_ip = htonl(curr->value->ip);
-                                temp_port = htons(curr->value->port);
-                                struct sockaddr_in newclient;
-                                struct sockaddr *newclientptr = (struct sockaddr *)&newclient;
-
+                                if (curr == NULL)
+                                {
+                                    printf("List is empty!\n");
+                                }
                                 while (curr != NULL)
                                 {
+                                    temp_ip = htonl(curr->value->ip);
+                                    temp_port = htons(curr->value->port);
+                                    printf("To inform IP: %u and port: %u\n", curr->value->ip, curr->value->port);
+                                    struct sockaddr_in newclient;
+                                    struct sockaddr *newclientptr = (struct sockaddr *)&newclient;
                                     int client_sock;
                                     if ((client_sock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
                                         perror_exit("socket");
@@ -266,29 +288,29 @@ int main(int argc, char **argv)
                                     newclient.sin_family = AF_INET; /* Internet domain */
                                     newclient.sin_port = temp_port; /* Server port:used htons */
                                     /* Initiate connection */
-                                    server.sin_addr.s_addr = temp_ip;
+                                    newclient.sin_addr.s_addr = temp_ip;
                                     if (connect(client_sock, newclientptr, sizeof(newclient)) < 0)
                                         perror_exit("connect");
 
                                     if (write(client_sock, "USER_OFF", 9) != 9)
                                     {
-                                        perror('write');
+                                        perror("write");
                                     }
-                                    if (write(client_sock, client_ip, 4) != 4)
+                                    if (write(client_sock, &client_ip, 4) != 4)
                                     {
-                                        perror('write');
+                                        perror("write");
                                     }
-                                    if (write(client_sock, client_port, 2) != 2)
+                                    if (write(client_sock, &client_port, 2) != 2)
                                     {
-                                        perror('write');
+                                        perror("write");
                                     }
                                     close(client_sock);
-                                    curr->next;
+                                    curr = curr->next;
                                 }
                             }
                             else
                             {
-                                printf(" ERROR_IP_PORT_NOT_FOUND_IN_LIST\n");
+                                printf("ERROR_IP_PORT_NOT_FOUND_IN_LIST\n");
                             }
                             break;
                         }
