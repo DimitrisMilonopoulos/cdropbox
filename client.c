@@ -7,12 +7,14 @@
 #include <stdlib.h>     /* exit */
 #include <string.h>     /* strlen */
 #include <signal.h>
+#include <pthread.h>
 
 /*For the IP*/
 #include <unistd.h>
 
 #include <sys/ioctl.h>
 #include <net/if.h>
+#include <errno.h>
 #include <arpa/inet.h>
 
 #include <sys/select.h> /*For the select command*/
@@ -20,6 +22,7 @@
 #include "info.h"
 #include "list.h"
 #include "functions.h"
+#include "circular_buffer.h"
 
 void perror_exit(char *message);
 void getHostIP(char *);
@@ -218,7 +221,7 @@ int main(int argc, char **argv)
     {
         /* Block until input arrives on one or more active sockets. */
         read_fd_set = active_fd_set;
-        if (select(FD_SETSIZE, &read_fd_set, NULL, NULL, NULL) < 0)
+        if (select(FD_SETSIZE, &read_fd_set, NULL, NULL, NULL) < 0 && errno != EINTR)
         {
             perror("select");
             exit(EXIT_FAILURE);
@@ -273,15 +276,17 @@ int main(int argc, char **argv)
                                 perror("read");
                                 break;
                             }
-                            newclient->ip = htonl(newclient->ip);
-
+                            //newclient->ip = htonl(newclient->ip);
+                            newclient->ip = ntohl(newclient->ip);
                             if (read(i, &newclient->port, 2) != 2)
                             {
                                 perror("read");
                                 break;
                             }
-                            newclient->port = htons(newclient->port);
-                            if (newclient->port == htons(portnet) && newclient->ip == htonl(ipbinary))
+                            //newclient->port = htons(newclient->port);
+                            newclient->port = ntohs(newclient->port);
+                            printf("\nBefore we insert %u/%u\n", ntohl(ipbinary), ntohs(portnet));
+                            if (newclient->port == ntohs(portnet) && newclient->ip == ntohl(ipbinary))
                             {
                                 printf("Same client!\n");
                                 break;
@@ -305,7 +310,8 @@ int main(int argc, char **argv)
                             }
                             tempclient.port = ntohs(tempclient.port);
                             printf("USER_OFF from ip: %u and port: %u\n", tempclient.ip, tempclient.port);
-                            if (tempclient.port == htons(portnet) && tempclient.ip == htonl(ipbinary))
+                            printf("Local USER: %u/%u", ipbinary, portnet);
+                            if (tempclient.port == ntohs(portnet) && tempclient.ip == ntohl(ipbinary))
                             {
                                 printf("Same client!\n");
                                 break;
@@ -327,6 +333,11 @@ int main(int argc, char **argv)
                     }
                 }
             }
+
+        //Finished with the select function
+
+        //initializing the circular buffer
+        struct circular_buffer *circBuf = InitBuffer(info->bufferSize);
     }
 
     printf("\nEXITING\n");

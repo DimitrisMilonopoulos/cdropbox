@@ -17,6 +17,13 @@ struct ip_port
     uint16_t port;
 };
 
+struct BufferObject
+{
+    char pathname[128];
+    uint32_t version;
+    uint32_t ip;
+    uint16_t port;
+};
 void printClientInfo(struct client_info *info);
 struct client_info *read_client_args(int argc, char **argv);
 #endif
