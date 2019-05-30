@@ -77,6 +77,7 @@ int DeleteNode(struct HeadNode *headnode, struct ip_port *value)
             {
                 if (curr == headnode->tail) //Only item in the list
                 {
+                    free(curr->value);
                     free(curr);
                     headnode->tail = NULL;
                     headnode->head = NULL;
@@ -85,6 +86,7 @@ int DeleteNode(struct HeadNode *headnode, struct ip_port *value)
                 else
                 {
                     headnode->head = curr->next;
+                    free(curr->value);
                     free(curr);
                     return 1;
                 }
@@ -93,12 +95,14 @@ int DeleteNode(struct HeadNode *headnode, struct ip_port *value)
             {
                 prev->next = curr->next;
                 headnode->head = prev;
+                free(curr->value);
                 free(curr);
                 return 1;
             }
             else
             {
                 prev->next = curr->next;
+                free(curr->value);
                 free(curr);
                 return 1;
             }

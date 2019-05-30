@@ -20,9 +20,10 @@
 #include <sys/select.h> /*For the select command*/
 
 #include "info.h"
+#include "circular_buffer.h"
 #include "list.h"
 #include "functions.h"
-#include "circular_buffer.h"
+#include "thread_func.h"
 
 void perror_exit(char *message);
 void getHostIP(char *);
@@ -68,6 +69,9 @@ int main(int argc, char **argv)
 
     //create the list for the fellow clients
     struct HeadNode *clientList = createQueue();
+    //initializing the circular buffer
+    struct circular_buffer *circBuf = InitBuffer((int)info->bufferSize, clientList);
+    struct BufferObject object_to_insert;
     if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
         perror_exit("socket");
     /* Find server address */
@@ -135,7 +139,7 @@ int main(int argc, char **argv)
     {
         printf("Invalid response");
     }
-    uint32_t number_of_clients;
+    int number_of_clients;
     // if (read(sock, &number_of_clients, 4) != 4)
     // {
     //     perror("read");
@@ -154,6 +158,7 @@ int main(int argc, char **argv)
         numbuf[k] = character;
         k++;
     } while (character != '\0');
+    printf("READ: %s\n", numbuf);
     number_of_clients = atoi(numbuf);
     printf("Number of clients it is goind to read %d\n", number_of_clients);
     for (int i = 0; i < number_of_clients; i++)
@@ -177,7 +182,15 @@ int main(int argc, char **argv)
         else
         {
             printf("Inserting new client\n");
+            pthread_mutex_lock(&circBuf->listlock);
             InsertNode(clientList, newclient);
+            pthread_mutex_unlock(&circBuf->listlock);
+            object_to_insert.ip = newclient->ip;
+            object_to_insert.port = newclient->port;
+            object_to_insert.pathname[0] = '\0';
+            object_to_insert.version = 0;
+            putitem(circBuf, object_to_insert);
+            pthread_cond_signal(&circBuf->cond_nonempty);
         }
     }
 
@@ -200,12 +213,20 @@ int main(int argc, char **argv)
     // //send the port number
     // if (write(sock, &portnet, 2) < 0)
     //     perror("write");
+    //create the worker threads
+    pthread_t mythread[2];
 
+    printf("Going to create threads!");
+    pthread_create(&mythread[0], NULL, (void *)threadFunc, circBuf);
+    pthread_create(&mythread[1], NULL, (void *)threadFunc, circBuf);
+    pthread_join(mythread[0], NULL);
+    pthread_join(mythread[1], NULL);
     //create the select interface for the client
 
     //create the socket for the client
 
-    struct sockaddr_in cl_server, client;
+    struct sockaddr_in cl_server,
+        client;
     struct sockaddr *cl_serverptr = (struct sockaddr *)&cl_server;
     struct sockaddr *clientptr = (struct sockaddr *)&client;
 
@@ -306,7 +327,15 @@ int main(int argc, char **argv)
                                 break;
                             }
                             printf("New client to insert ip: %u port %u\n", newclient->ip, newclient->port);
+
                             InsertNode(clientList, newclient);
+                            object_to_insert.ip = newclient->ip;
+                            object_to_insert.port = newclient->port;
+                            object_to_insert.pathname[0] = '\0';
+                            object_to_insert.version = 0;
+                            putitem(circBuf, object_to_insert);
+                            pthread_cond_signal(&circBuf->cond_nonempty);
+
                             printf("USER ON NODE INSERTED!\n");
                             break;
                         case 2:
@@ -330,6 +359,7 @@ int main(int argc, char **argv)
                                 printf("Same client!\n");
                                 break;
                             }
+                            pthread_mutex_lock(&circBuf->listlock);
                             if (DeleteNode(clientList, &tempclient))
                             {
                                 printf("Client deleted successfully!\n");
@@ -338,6 +368,7 @@ int main(int argc, char **argv)
                             {
                                 printf("Client not found!\n");
                             }
+                            pthread_mutex_unlock(&circBuf->listlock);
                             break;
                         case 3:
                             break;
@@ -349,12 +380,11 @@ int main(int argc, char **argv)
             }
 
         //Finished with the select function
-
-        //initializing the circular buffer
-        struct circular_buffer *circBuf = InitBuffer(info->bufferSize);
     }
 
     printf("\nEXITING\n");
+    destroyStruct(circBuf);
+    free(info);
     if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
         perror_exit("socket");
     if (connect(sock, serverptr, sizeof(server)) < 0)

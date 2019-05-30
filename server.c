@@ -219,6 +219,7 @@ int main(int argc, char **argv)
                             //     perror("write");
                             char numbuf[10];
                             sprintf(numbuf, "%d", connectionList->nitems);
+                            printf("NUMBER I AM GOING TO SEND: %s\nREAL NUMBER: %d\n", numbuf, connectionList->nitems);
                             if (write(i, numbuf, strlen(numbuf) + 1) < 0)
                                 perror("write");
                             struct Node *curr = connectionList->head;

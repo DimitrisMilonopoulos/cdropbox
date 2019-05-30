@@ -2,6 +2,7 @@
     "files.associations": {
         "stdio.h": "c",
         "ioctl.h": "c",
-        "type_traits": "c"
+        "type_traits": "c",
+        "functions.h": "c"
     }
 }
