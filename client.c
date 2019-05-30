@@ -136,11 +136,25 @@ int main(int argc, char **argv)
         printf("Invalid response");
     }
     uint32_t number_of_clients;
-    if (read(sock, &number_of_clients, 4) != 4)
+    // if (read(sock, &number_of_clients, 4) != 4)
+    // {
+    //     perror("read");
+    // }
+    // number_of_clients = ntohl(number_of_clients);
+
+    char character;
+    char numbuf[10];
+    int k = 0;
+    do
     {
-        perror("read");
-    }
-    number_of_clients = ntohl(number_of_clients);
+        if (read(sock, &character, 1) != 1)
+        {
+            perror("read");
+        }
+        numbuf[k] = character;
+        k++;
+    } while (character != '\0');
+    number_of_clients = atoi(numbuf);
     printf("Number of clients it is goind to read %d\n", number_of_clients);
     for (int i = 0; i < number_of_clients; i++)
     {

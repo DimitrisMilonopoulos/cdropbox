@@ -194,7 +194,7 @@ int main(int argc, char **argv)
                         case 2:
                             printf("Sending to Client %d\n", connectionList->nitems);
                             //send files to the client
-                            uint32_t numberofClients = htonl(connectionList->nitems);
+                            // uint32_t numberofClients = htonl(connectionList->nitems);
 
                             if ((amount = read(i, &client_ip, 4)) != 4)
                             {
@@ -215,9 +215,12 @@ int main(int argc, char **argv)
                                 perror("write");
                             }
 
-                            if (write(i, &numberofClients, 4) < 0)
+                            // if (write(i, &numberofClients, 4) < 0)
+                            //     perror("write");
+                            char numbuf[10];
+                            sprintf(numbuf, "%d", connectionList->nitems);
+                            if (write(i, numbuf, strlen(numbuf) + 1) < 0)
                                 perror("write");
-
                             struct Node *curr = connectionList->head;
                             while (curr != NULL)
                             {
