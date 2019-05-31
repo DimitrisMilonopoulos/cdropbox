@@ -20,7 +20,7 @@ struct ip_port
 struct BufferObject
 {
     char pathname[128];
-    uint32_t version;
+    long version;
     uint32_t ip;
     uint16_t port;
 };

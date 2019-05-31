@@ -24,6 +24,7 @@
 #include "list.h"
 #include "functions.h"
 #include "thread_func.h"
+#include "fileFunctions.h"
 
 void perror_exit(char *message);
 void getHostIP(char *);
@@ -371,9 +372,88 @@ int main(int argc, char **argv)
                             pthread_mutex_unlock(&circBuf->listlock);
                             break;
                         case 3:
+                            //Case for the GET_CLIENT_LIST command
+                            if (write(i, "FILE_LIST", 10) < 0)
+                            {
+                                perror("writting file list:");
+                            }
+                            //get the number of files in the directory
+                            char cwd[1024];
+                            getcwd(cwd, sizeof(cwd)); //get the working directory
+                            FILE *filePtr = fopen(cwd, "r");
+                            if (filePtr == NULL)
+                            {
+                                printf("\n\nError opening file!!\n\n");
+                            }
+                            int fileCount = 0;
+                            countFiles(info->dirName, filePtr, &fileCount);
+                            //convert file count to string
+                            char FileCounter[15];
+                            sprintf(FileCounter, "%d", fileCount);
+                            if (write(i, FileCounter, strlen(FileCounter) + 1) < 0)
+                            {
+                                perror("Error sending file Count:");
+                            }
+                            listdir(info->dirName, i, filePtr);
                             break;
                         case 4:
+                        { //read the pathname
+                            int j = 0;
+                            char pathBuffer[128];
+                            char readChar;
+                            do
+                            {
+                                if (read(i, &readChar, 1) < 0)
+                                {
+                                    perror("Reading path:");
+                                }
+                                pathBuffer[j] = readChar;
+                                j++;
+                            } while (readChar != '\0');
+                            //read the file version
+                            j = 0;
+                            char fileVersion[21];
+                            do
+                            {
+                                if (read(i, &readChar, 1) < 0)
+                                {
+                                    perror("Reading path:");
+                                }
+                                fileVersion[j] = readChar;
+                                j++;
+                            } while (readChar != '\0');
+                            long Receivedtimestamp;
+                            Receivedtimestamp = atol(fileVersion);
+
+                            //Check if the file exists
+                            //create the path to file
+                            char pathToFile[128];
+                            strcpy(pathToFile, info->dirName);
+                            strcat(pathToFile, pathBuffer);
+                            if (fileExists(pathToFile))
+                            {
+                                if (Receivedtimestamp >= getFileTime(pathToFile))
+                                {
+                                    if (write(i, "FILE_UP_TO_DATE", 15) < 0)
+                                    {
+                                        perror("Sending message");
+                                    }
+                                }
+                                else
+                                {
+                                    //sending the file
+                                    copyfile(pathToFile, i, 200);
+                                }
+                            }
+                            else
+                            {
+                                if (write(i, "FILE_NOT_FOUND", 15) < 0)
+                                {
+                                    perror("Sending message");
+                                }
+                            }
                             break;
+                        }
                         }
                     }
                 }
