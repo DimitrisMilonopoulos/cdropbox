@@ -10,6 +10,8 @@
 #include <ctype.h>      /* toupper */
 #include <string.h>
 #include <sys/select.h>
+#include <signal.h>
+#include <errno.h>
 /*For the IP*/
 #include <unistd.h>
 
@@ -21,12 +23,19 @@
 #include "list.h"
 #include "functions.h"
 void perror_exit(char *message);
-void getIP(char *buffer);
+// void getIP(char *buffer);
+int terminate = 0;
+
+void closeServer(int signum)
+{
+    terminate = 1;
+}
 
 int main(int argc, char **argv)
 {
     char buffer[30];
-    getIP(buffer);
+    char hostname[60];
+    getIP(buffer, hostname);
     printf("The IP is %s\n", buffer);
     int port, sock, newsock;
     struct sockaddr_in server, client;
@@ -57,6 +66,24 @@ int main(int argc, char **argv)
         perror_exit(" listen ");
     printf("Listening for connections to port %d \n", port);
 
+    //initialize the interrupt
+    struct sigaction toExit = {};
+
+    toExit.sa_handler = closeServer;
+    toExit.sa_flags = SA_NODEFER;
+
+    if (sigaction(SIGINT, &toExit, NULL) == -1)
+    {
+        perror("Error in sigaction");
+        exit(EXIT_FAILURE);
+    }
+
+    if (sigaction(SIGQUIT, &toExit, NULL) == -1)
+    {
+        perror("Error in sigaction");
+        exit(EXIT_FAILURE);
+    }
+
     //create list to save the connections
     struct HeadNode *connectionList = createQueue();
 
@@ -73,10 +100,14 @@ int main(int argc, char **argv)
     {
         /* Block until input arrives on one or more active sockets. */
         read_fd_set = active_fd_set;
-        if (select(FD_SETSIZE, &read_fd_set, NULL, NULL, NULL) < 0)
+        if (select(FD_SETSIZE, &read_fd_set, NULL, NULL, NULL) < 0 && errno != EINTR)
         {
             perror("select");
             exit(EXIT_FAILURE);
+        }
+        if (terminate)
+        {
+            break;
         }
         for (int i = 0; i < FD_SETSIZE; ++i)
         {
@@ -337,58 +368,58 @@ void perror_exit(char *message)
     exit(EXIT_FAILURE);
 }
 
-void checkHostName(int hostname)
-{
-    if (hostname == -1)
-    {
-        perror("gethostname");
-        exit(1);
-    }
-}
+// void checkHostName(int hostname)
+// {
+//     if (hostname == -1)
+//     {
+//         perror("gethostname");
+//         exit(1);
+//     }
+// }
 
-// Returns host information corresponding to host name
-void checkHostEntry(struct hostent *hostentry)
-{
-    if (hostentry == NULL)
-    {
-        perror("gethostbyname");
-        exit(1);
-    }
-}
+// // Returns host information corresponding to host name
+// void checkHostEntry(struct hostent *hostentry)
+// {
+//     if (hostentry == NULL)
+//     {
+//         perror("gethostbyname");
+//         exit(1);
+//     }
+// }
 
-// Converts space-delimited IPv4 addresses
-// to dotted-decimal format
-void checkIPbuffer(char *IPbuffer)
-{
-    if (NULL == IPbuffer)
-    {
-        perror("inet_ntoa");
-        exit(1);
-    }
-}
-// Driver code
-void getIP(char *buffer)
-{
-    char hostbuffer[256];
-    char *IPbuffer;
-    struct hostent *host_entry;
-    int hostname;
+// // Converts space-delimited IPv4 addresses
+// // to dotted-decimal format
+// void checkIPbuffer(char *IPbuffer)
+// {
+//     if (NULL == IPbuffer)
+//     {
+//         perror("inet_ntoa");
+//         exit(1);
+//     }
+// }
+// // Driver code
+// void getIP(char *buffer)
+// {
+//     char hostbuffer[256];
+//     char *IPbuffer;
+//     struct hostent *host_entry;
+//     int hostname;
 
-    // To retrieve hostname
-    hostname = gethostname(hostbuffer, sizeof(hostbuffer));
-    checkHostName(hostname);
+//     // To retrieve hostname
+//     hostname = gethostname(hostbuffer, sizeof(hostbuffer));
+//     checkHostName(hostname);
 
-    // To retrieve host information
-    host_entry = gethostbyname(hostbuffer);
-    checkHostEntry(host_entry);
+//     // To retrieve host information
+//     host_entry = gethostbyname(hostbuffer);
+//     checkHostEntry(host_entry);
 
-    // To convert an Internet network
-    // address into ASCII string
-    IPbuffer = inet_ntoa(*((struct in_addr *)
-                               host_entry->h_addr_list[0]));
+//     // To convert an Internet network
+//     // address into ASCII string
+//     IPbuffer = inet_ntoa(*((struct in_addr *)
+//                                host_entry->h_addr_list[0]));
 
-    printf("Hostname: %s\n", hostbuffer);
-    printf("Host IP: %s", IPbuffer);
+//     printf("Hostname: %s\n", hostbuffer);
+//     printf("Host IP: %s", IPbuffer);
 
-    strcpy(buffer, IPbuffer);
-}
+//     strcpy(buffer, IPbuffer);
+// }

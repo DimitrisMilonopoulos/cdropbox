@@ -31,8 +31,14 @@ int getMessage(int fd, char *message);
 
 void threadFunc(struct circular_buffer *arg_struct)
 {
+
     printf("Hallo i am a lovely thread\n");
     printf("The buffer size is: %d\n", arg_struct->BufferSize);
+    //get the name of the host
+    char hostIP[30];
+    char hostName[60];
+    getIP(hostIP, hostName);
+    printf("\nThe hostname of the THREAD: %s\n", hostName);
     struct BufferObject temp_object;
     struct ip_port temp_client;
     uint32_t network_ip;
@@ -137,7 +143,7 @@ void threadFunc(struct circular_buffer *arg_struct)
             struct in_addr addr;
             addr.s_addr = htonl(temp_client.ip);
             he = gethostbyaddr(&addr, sizeof(addr), AF_INET);
-            sprintf(path, "./%s_%d", he->h_name, temp_client.port);
+            sprintf(path, "./%s_mirror/%s_%d", hostName, he->h_name, temp_client.port);
             strcat(path, temp_object.pathname);
 
             if (write(sock, "GET_FILE", 9) < 0)
@@ -149,7 +155,7 @@ void threadFunc(struct circular_buffer *arg_struct)
             {
                 perror("Writting to fellow client error:");
             }
-            if (fileExists(path))
+            if (!fileExists(path)) //if file doesn't exists
             {
                 if (write(sock, "0", 2) < 0)
                 {

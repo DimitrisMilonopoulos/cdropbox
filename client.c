@@ -28,7 +28,6 @@
 
 void perror_exit(char *message);
 void getHostIP(char *);
-void getIP(char *buffer);
 int terminate = 0;
 
 void closeClient(int signum)
@@ -39,7 +38,8 @@ void closeClient(int signum)
 int main(int argc, char **argv)
 {
     char ip_buffer[30];
-    getIP(ip_buffer);
+    char host_name[60];
+    getIP(ip_buffer, host_name);
     printf("Found your ip adress to be: %s\n", ip_buffer);
     struct client_info *info = read_client_args(argc, argv);
     printClientInfo(info);
@@ -117,9 +117,14 @@ int main(int argc, char **argv)
     FD_SET(cl_sock, &active_fd_set);
     socklen_t size;
     //create threads
-    pthread_t mythread[2];
-    pthread_create(&mythread[0], NULL, (void *)threadFunc, circBuf);
-    pthread_create(&mythread[1], NULL, (void *)threadFunc, circBuf);
+    // pthread_t mythread[2];
+    // pthread_create(&mythread[0], NULL, (void *)threadFunc, circBuf);
+    // pthread_create(&mythread[1], NULL, (void *)threadFunc, circBuf);
+    pthread_t mythreads[info->workerThreads];
+    for (int i = 0; i < info->workerThreads; i++)
+    {
+        pthread_create(&mythreads[i], NULL, (void *)threadFunc, circBuf);
+    }
 
     printf("Going to create threads!");
     //convert the ip adress and socket to binary form for transfer
@@ -560,59 +565,59 @@ void getHostIP(char *buffer)
     close(fd);
 }
 
-void checkHostName(int hostname)
-{
-    if (hostname == -1)
-    {
-        perror("gethostname");
-        exit(1);
-    }
-}
+// void checkHostName(int hostname)
+// {
+//     if (hostname == -1)
+//     {
+//         perror("gethostname");
+//         exit(1);
+//     }
+// }
 
-// Returns host information corresponding to host name
-void checkHostEntry(struct hostent *hostentry)
-{
-    if (hostentry == NULL)
-    {
-        perror("gethostbyname");
-        exit(1);
-    }
-}
+// // Returns host information corresponding to host name
+// void checkHostEntry(struct hostent *hostentry)
+// {
+//     if (hostentry == NULL)
+//     {
+//         perror("gethostbyname");
+//         exit(1);
+//     }
+// }
 
-// Converts space-delimited IPv4 addresses
-// to dotted-decimal format
-void checkIPbuffer(char *IPbuffer)
-{
-    if (NULL == IPbuffer)
-    {
-        perror("inet_ntoa");
-        exit(1);
-    }
-}
+// // Converts space-delimited IPv4 addresses
+// // to dotted-decimal format
+// void checkIPbuffer(char *IPbuffer)
+// {
+//     if (NULL == IPbuffer)
+//     {
+//         perror("inet_ntoa");
+//         exit(1);
+//     }
+// }
 
-// Driver code
-void getIP(char *buffer)
-{
-    char hostbuffer[256];
-    char *IPbuffer;
-    struct hostent *host_entry;
-    int hostname;
+// // Driver code
+// void getIP(char *buffer)
+// {
+//     char hostbuffer[256];
+//     char *IPbuffer;
+//     struct hostent *host_entry;
+//     int hostname;
 
-    // To retrieve hostname
-    hostname = gethostname(hostbuffer, sizeof(hostbuffer));
-    checkHostName(hostname);
+//     // To retrieve hostname
+//     hostname = gethostname(hostbuffer, sizeof(hostbuffer));
+//     checkHostName(hostname);
 
-    // To retrieve host information
-    host_entry = gethostbyname(hostbuffer);
-    checkHostEntry(host_entry);
+//     // To retrieve host information
+//     host_entry = gethostbyname(hostbuffer);
+//     checkHostEntry(host_entry);
 
-    // To convert an Internet network
-    // address into ASCII string
-    IPbuffer = inet_ntoa(*((struct in_addr *)
-                               host_entry->h_addr_list[0]));
+//     // To convert an Internet network
+//     // address into ASCII string
+//     IPbuffer = inet_ntoa(*((struct in_addr *)
+//                                host_entry->h_addr_list[0]));
 
-    printf("Hostname: %s\n", hostbuffer);
-    printf("Host IP: %s", IPbuffer);
+//     printf("Hostname: %s\n", hostbuffer);
+//     printf("Host IP: %s", IPbuffer);
 
-    strcpy(buffer, IPbuffer);
-}
+//     strcpy(buffer, IPbuffer);
+// }

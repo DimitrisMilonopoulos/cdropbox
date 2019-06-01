@@ -165,6 +165,7 @@ long int findSize(const char *file_name) /*Function that recognizes files size*/
 
 int createPath(char *path) /*Create the path that the directory suggests*/
 {
+    printf("The path to create: %s", path);
     int directory;
     char temp2[PATH_MAX];
     strcpy(temp2, path);
@@ -173,17 +174,19 @@ int createPath(char *path) /*Create the path that the directory suggests*/
     char temp[PATH_MAX];
     strcpy(temp, "");
     char *token;
-    token = strtok(temp2, "/");
+    char *rest = temp2;
+    token = strtok_r(rest, "/", &rest);
     strcat(temp, token);
     strcat(temp, "/");
 
-    token = strtok(NULL, "/");
+    token = strtok_r(rest, "/", &rest);
     while (token != NULL && (token[strlen(token) - 1] != '-'))
     {
         strcat(temp, token);
+        printf("MAKING DIRECTORY: %s\n", temp);
         directory = mkdir(temp, 0777);
         strcat(temp, "/");
-        token = strtok(NULL, "/");
+        token = strtok_r(rest, "/", &rest);
     }
     //means that we've successfully read through the file
     if (token != NULL)
@@ -241,6 +244,7 @@ int fdtoFile(char *outname, int indesc, int BUFFSIZE, int fileSize)
     int readAmount = BUFFSIZE;
     if ((outfile = open(outname, O_WRONLY, 0644)) == -1)
     {
+        printf("The outname: %s\n", outname);
         perror("Outfile");
         return -2;
     }

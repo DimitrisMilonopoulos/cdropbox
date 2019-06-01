@@ -94,7 +94,7 @@ int DeleteNode(struct HeadNode *headnode, struct ip_port *value)
             else if (curr->next == NULL)
             {
                 prev->next = curr->next;
-                headnode->head = prev;
+                headnode->tail = prev;
                 free(curr->value);
                 free(curr);
                 return 1;
