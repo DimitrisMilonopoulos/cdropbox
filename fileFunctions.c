@@ -311,18 +311,20 @@ int fileExists(char *filename)
     }
 }
 
-int main(void)
-{
-    char cwd[1024];
-    getcwd(cwd, sizeof(cwd));
-    FILE *filePtr = fopen(cwd, "r");
-    if (filePtr == NULL)
-    {
-        printf("Error!");
-    }
-    listdir("nigga", -1, 0, filePtr);
-    int fileCount = 0;
-    countFiles("nigga", filePtr, &fileCount);
-    printf("Count files: %d\n", fileCount);
-    printf("Size : %lu\n", sizeof(time_t));
-}
+// int main(void)
+// {
+//     char cwd[1024];
+//     getcwd(cwd, sizeof(cwd));
+//     FILE *filePtr = fopen(cwd, "r");
+//     if (filePtr == NULL)
+//     {
+//         printf("Error!");
+//     }
+//     listdir("nigga", -1, 0);
+//     int fileCount = 0;
+//     countFiles("nigga", filePtr, &fileCount);
+//     printf("Count files: %d\n", fileCount);
+//     printf("Size : %lu\n", sizeof(time_t));
+//     createPath("./hello/mama/sita/buena/niga.txt");
+//     printf("File exists:%d\n", fileExists("./hello/mama/sita/buena/nigo.txt"));
+// }

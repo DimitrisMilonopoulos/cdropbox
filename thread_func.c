@@ -45,31 +45,35 @@ void threadFunc(struct circular_buffer *arg_struct)
     {
         getitem(arg_struct, &temp_object);
         pthread_cond_signal(&arg_struct->cond_nonfull); //Struct isn't full
-        //recognize if the temp_object is just port/ip
-        if (temp_object.port == 0 && temp_object.ip == 0) //means it's just port and ip so we need to get files
+        printf("\nPOPPED AN ITEM FROM QUEUE\n");
+        //check if the object exists inside the client list
+        temp_client.ip = temp_object.ip;
+        temp_client.port = temp_object.port;
+        pthread_mutex_lock(&arg_struct->listlock);
+        if (!FindNode(arg_struct->client_list, temp_client))
         {
-            //check if the object exists inside the client list
-            temp_client.ip = temp_object.ip;
-            temp_client.port = temp_object.port;
-            pthread_mutex_lock(&arg_struct->listlock);
-            if (!FindNode(arg_struct->client_list, temp_client))
-            {
-                pthread_mutex_unlock(&arg_struct->listlock);
-                printf("ERROR CLIENT NOT FOUND IN THE SYSTEM...\n");
-                continue;
-            }
             pthread_mutex_unlock(&arg_struct->listlock);
-            //convert to network byte order
-            network_ip = htonl(temp_object.ip);
-            network_port = htons(temp_object.port);
-            //connect to the fellow client to get the file list
-            if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
-                perror("socket");
-            fellow_client.sin_family = AF_INET;
-            fellow_client.sin_port = network_port;
-            fellow_client.sin_addr.s_addr = network_ip;
-            if (connect(sock, fellow_clientptr, sizeof(fellow_client)) < 0)
-                perror("connect");
+            printf("ERROR CLIENT NOT FOUND IN THE SYSTEM...\n");
+            continue;
+        }
+        pthread_mutex_unlock(&arg_struct->listlock);
+        //convert to network byte order
+        network_ip = htonl(temp_object.ip);
+        network_port = htons(temp_object.port);
+        //connect to the fellow client to get the file list
+        if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+            perror("socket");
+        fellow_client.sin_family = AF_INET;
+        fellow_client.sin_port = network_port;
+        fellow_client.sin_addr.s_addr = network_ip;
+        if (connect(sock, fellow_clientptr, sizeof(fellow_client)) < 0)
+            perror("connect");
+        /////////////////////
+
+        //recognize if the temp_object is just port/ip
+        if (temp_object.pathname[0] == '\0' && temp_object.version == 0) //means it's just port and ip so we need to get files
+        {
+
             if (write(sock, "GET_FILE_LIST", 14) < 0)
             {
                 perror("Sending file list request:");
@@ -123,18 +127,8 @@ void threadFunc(struct circular_buffer *arg_struct)
             struct in_addr addr;
             addr.s_addr = htonl(temp_client.ip);
             he = gethostbyaddr(&addr, sizeof(addr), AF_INET);
-            sprintf(path, "/%s_%d", he->h_name, temp_client.port);
+            sprintf(path, "./%s_%d", he->h_name, temp_client.port);
             strcat(path, temp_object.pathname);
-            network_ip = htonl(temp_object.ip);
-            network_port = htons(temp_object.port);
-            //connect to the fellow client to get the file list
-            if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
-                perror("socket");
-            fellow_client.sin_family = AF_INET;
-            fellow_client.sin_port = network_port;
-            fellow_client.sin_addr.s_addr = network_ip;
-            if (connect(sock, fellow_clientptr, sizeof(fellow_client)) < 0)
-                perror("connect");
 
             if (write(sock, "GET_FILE", 9) < 0)
             {
@@ -181,6 +175,7 @@ void threadFunc(struct circular_buffer *arg_struct)
                 break;
             case 3:
             {
+                printf("RECEIVING FILE!\n");
                 //local file outdated, time to read the updated file from fellow client
                 getMessage(sock, message);
                 long newversion = atol(message);

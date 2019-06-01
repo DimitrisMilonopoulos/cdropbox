@@ -395,6 +395,7 @@ int main(int argc, char **argv)
                                 perror("Error sending file Count:");
                             }
                             listdir(info->dirName, i, filePtr);
+                            close(i);
                             break;
                         case 4:
                         { //read the pathname
@@ -434,13 +435,22 @@ int main(int argc, char **argv)
                             {
                                 if (Receivedtimestamp >= getFileTime(pathToFile))
                                 {
-                                    if (write(i, "FILE_UP_TO_DATE", 15) < 0)
+                                    if (write(i, "FILE_UP_TO_DATE", 16) < 0)
                                     {
                                         perror("Sending message");
                                     }
                                 }
                                 else
                                 {
+                                    //send the size of the file
+                                    int filesize = findSize(pathToFile);
+                                    //convert it to string
+                                    char num[25];
+                                    sprintf(num, "%d", filesize);
+                                    if (write(i, num, strlen(num) + 1) < 0)
+                                    {
+                                        perror("Can't write file length");
+                                    }
                                     //sending the file
                                     copyfile(pathToFile, i, 200);
                                 }
@@ -452,6 +462,7 @@ int main(int argc, char **argv)
                                     perror("Sending message");
                                 }
                             }
+                            close(i);
                             break;
                         }
                         }
