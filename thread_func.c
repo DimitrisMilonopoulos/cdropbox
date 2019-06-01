@@ -49,6 +49,7 @@ void threadFunc(struct circular_buffer *arg_struct)
         //check if the object exists inside the client list
         temp_client.ip = temp_object.ip;
         temp_client.port = temp_object.port;
+        printf("THREAD: GOING TO CONNECT TO: %u/%u\n", temp_client.ip, temp_client.port);
         pthread_mutex_lock(&arg_struct->listlock);
         if (!FindNode(arg_struct->client_list, temp_client))
         {
@@ -60,14 +61,22 @@ void threadFunc(struct circular_buffer *arg_struct)
         //convert to network byte order
         network_ip = htonl(temp_object.ip);
         network_port = htons(temp_object.port);
+        printf("THREAD: GOING TO CONNECT TO(NBO): %u/%u\n", network_ip, network_port);
+
         //connect to the fellow client to get the file list
         if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
             perror("socket");
         fellow_client.sin_family = AF_INET;
         fellow_client.sin_port = network_port;
-        fellow_client.sin_addr.s_addr = network_ip;
+        struct in_addr temp_addr = {};
+        temp_addr.s_addr = network_ip;
+        fellow_client.sin_addr = temp_addr;
         if (connect(sock, fellow_clientptr, sizeof(fellow_client)) < 0)
-            perror("connect");
+            perror("connect THREAD");
+        else
+        {
+            printf("Connected SUCCESS!\n");
+        }
         /////////////////////
 
         //recognize if the temp_object is just port/ip
@@ -108,6 +117,7 @@ void threadFunc(struct circular_buffer *arg_struct)
         }
         else
         {
+            printf("FILE OPERATION!\n");
             //check if the object exists inside the client list
             temp_client.ip = temp_object.ip;
             temp_client.port = temp_object.port;
@@ -182,6 +192,7 @@ void threadFunc(struct circular_buffer *arg_struct)
                 getMessage(sock, message);
 
                 unsigned int filesize = atoi(message);
+                printf("The size of the file going to be written is: %u\n in path: %s\n", filesize, path);
                 createPath(path);
                 fdtoFile(path, sock, 200, filesize);
             }

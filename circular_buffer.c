@@ -15,6 +15,7 @@ struct circular_buffer *InitBuffer(int BufferSize, struct HeadNode *List_clients
     newbuffer->bufin = 0;
     newbuffer->bufout = 0;
     newbuffer->BufferSize = BufferSize;
+    newbuffer->totalitems = 0;
     pthread_mutex_init(&newbuffer->bufferlock, 0);
     pthread_mutex_init(&newbuffer->listlock, 0);
     pthread_cond_init(&newbuffer->cond_nonempty, 0);
@@ -44,6 +45,7 @@ int getitem(struct circular_buffer *bufferStruct, struct BufferObject *object)
     {
         printf(">>Found Buffer Empty\n");
         pthread_cond_wait(&bufferStruct->cond_nonempty, &bufferStruct->bufferlock);
+        printf(">>Stopped waiting\n");
     }
 
     if (bufferStruct->totalitems > 0)

@@ -131,7 +131,7 @@ int recogniseClientMessage(char first_char, int newsock)
     {
         return 3;
     }
-    else if (strcmp(message, "GET_FILES") == 0)
+    else if (strcmp(message, "GET_FILE") == 0)
     {
         return 4;
     }

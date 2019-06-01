@@ -1,0 +1,13 @@
+Hostname: linux02
+Host IP: 195.134.65.73Found your ip adress to be: 195.134.65.73
+Dirname: ./hello
+portNum: 3012
+workerThreads: 2
+bufferSize: 2
+serverPort: 3005
+serverIP: 195.134.65.72
+The adress in uint is 1212253891
+The sin_addr is 1229031107
+The sin_addr is 1229031107
+
+Connecting again

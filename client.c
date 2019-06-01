@@ -88,7 +88,40 @@ int main(int argc, char **argv)
         perror_exit("connect");
 
     /*Send log on message to server*/
+    //create the socket for the client
 
+    struct sockaddr_in cl_server,
+        client;
+    struct sockaddr *cl_serverptr = (struct sockaddr *)&cl_server;
+    struct sockaddr *clientptr = (struct sockaddr *)&client;
+
+    int cl_sock;
+    /* Create socket */
+    if ((cl_sock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+        perror_exit("socket");
+
+    cl_server.sin_family = AF_INET;                /* Internet domain */
+    cl_server.sin_addr.s_addr = htonl(INADDR_ANY); //watch out
+    cl_server.sin_port = htons(info->portNum);     /* The given port */
+
+    /* Bind socket to address */
+    if (bind(cl_sock, cl_serverptr, sizeof(cl_server)) < 0)
+        perror_exit("bind");
+    /* Listen for connections */
+    if (listen(cl_sock, 15) < 0)
+        perror_exit(" listen ");
+
+    fd_set active_fd_set, read_fd_set;
+    /* Initialize the set of active sockets. */
+    FD_ZERO(&active_fd_set);
+    FD_SET(cl_sock, &active_fd_set);
+    socklen_t size;
+    //create threads
+    pthread_t mythread[2];
+    pthread_create(&mythread[0], NULL, (void *)threadFunc, circBuf);
+    pthread_create(&mythread[1], NULL, (void *)threadFunc, circBuf);
+
+    printf("Going to create threads!");
     //convert the ip adress and socket to binary form for transfer
     struct sockaddr_in myaddr;
     inet_aton(ip_buffer, &myaddr.sin_addr);
@@ -116,7 +149,7 @@ int main(int argc, char **argv)
     if (connect(sock, serverptr, sizeof(server)) < 0)
         perror_exit("connect");
     //Get the other clients
-
+    printf("Getting the clients\n");
     //send the log on message to server
     if (write(sock, "GET_CLIENTS", 12) < 0)
         perror("write");
@@ -215,48 +248,44 @@ int main(int argc, char **argv)
     // if (write(sock, &portnet, 2) < 0)
     //     perror("write");
     //create the worker threads
-    pthread_t mythread[2];
 
-    printf("Going to create threads!");
-    pthread_create(&mythread[0], NULL, (void *)threadFunc, circBuf);
-    pthread_create(&mythread[1], NULL, (void *)threadFunc, circBuf);
-    pthread_join(mythread[0], NULL);
-    pthread_join(mythread[1], NULL);
     //create the select interface for the client
 
-    //create the socket for the client
+    // //create the socket for the client
 
-    struct sockaddr_in cl_server,
-        client;
-    struct sockaddr *cl_serverptr = (struct sockaddr *)&cl_server;
-    struct sockaddr *clientptr = (struct sockaddr *)&client;
+    // struct sockaddr_in cl_server,
+    //     client;
+    // struct sockaddr *cl_serverptr = (struct sockaddr *)&cl_server;
+    // struct sockaddr *clientptr = (struct sockaddr *)&client;
 
-    int cl_sock;
-    /* Create socket */
-    if ((cl_sock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
-        perror_exit("socket");
+    // int cl_sock;
+    // /* Create socket */
+    // if ((cl_sock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+    //     perror_exit("socket");
 
-    cl_server.sin_family = AF_INET;                /* Internet domain */
-    cl_server.sin_addr.s_addr = htonl(INADDR_ANY); //watch out
-    cl_server.sin_port = htons(info->portNum);     /* The given port */
+    // cl_server.sin_family = AF_INET;                /* Internet domain */
+    // cl_server.sin_addr.s_addr = htonl(INADDR_ANY); //watch out
+    // cl_server.sin_port = htons(info->portNum);     /* The given port */
 
-    /* Bind socket to address */
-    if (bind(cl_sock, cl_serverptr, sizeof(cl_server)) < 0)
-        perror_exit("bind");
-    /* Listen for connections */
-    if (listen(cl_sock, 15) < 0)
-        perror_exit(" listen ");
-    printf("Listening for connections to port %d \n", info->portNum);
+    // /* Bind socket to address */
+    // if (bind(cl_sock, cl_serverptr, sizeof(cl_server)) < 0)
+    //     perror_exit("bind");
+    // /* Listen for connections */
+    // if (listen(cl_sock, 15) < 0)
+    //     perror_exit(" listen ");
 
-    fd_set active_fd_set, read_fd_set;
-    /* Initialize the set of active sockets. */
-    FD_ZERO(&active_fd_set);
-    FD_SET(cl_sock, &active_fd_set);
-    socklen_t size;
+    // fd_set active_fd_set, read_fd_set;
+    // /* Initialize the set of active sockets. */
+    // FD_ZERO(&active_fd_set);
+    // FD_SET(cl_sock, &active_fd_set);
+    // socklen_t size;
+
     while (1)
     {
         /* Block until input arrives on one or more active sockets. */
         read_fd_set = active_fd_set;
+        // printf("Listening for connections to port %d \n", info->portNum);
+
         if (select(FD_SETSIZE, &read_fd_set, NULL, NULL, NULL) < 0 && errno != EINTR)
         {
             perror("select");
@@ -431,6 +460,7 @@ int main(int argc, char **argv)
                             char pathToFile[128];
                             strcpy(pathToFile, info->dirName);
                             strcat(pathToFile, pathBuffer);
+                            printf("PATH TO THE FILE TO SEND: %s\n", pathToFile);
                             if (fileExists(pathToFile))
                             {
                                 if (Receivedtimestamp >= getFileTime(pathToFile))
@@ -442,10 +472,21 @@ int main(int argc, char **argv)
                                 }
                                 else
                                 {
+                                    if (write(i, "FILE_SIZE", 10) < 0)
+                                    {
+                                        perror("Sending message");
+                                    }
+                                    //send version of the file
+                                    long fileversion = getFileTime(pathToFile);
+                                    char num[25];
+                                    sprintf(num, "%ld", fileversion);
+                                    if (write(i, num, strlen(num) + 1) < 0)
+                                    {
+                                        perror("Can't write file length");
+                                    }
                                     //send the size of the file
                                     int filesize = findSize(pathToFile);
                                     //convert it to string
-                                    char num[25];
                                     sprintf(num, "%d", filesize);
                                     if (write(i, num, strlen(num) + 1) < 0)
                                     {
@@ -462,10 +503,11 @@ int main(int argc, char **argv)
                                     perror("Sending message");
                                 }
                             }
-                            close(i);
-                            break;
                         }
                         }
+                        close(i);
+                        FD_CLR(i, &active_fd_set);
+                        printf("FILE DESCRIPTOR CLEARED!\n");
                     }
                 }
             }
