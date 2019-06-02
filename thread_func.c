@@ -25,13 +25,24 @@
 #include "functions.h"
 #include "fileFunctions.h"
 #include "thread_func.h"
+extern int terminate;
 
 int clientAnswer(int fd);
 int getMessage(int fd, char *message);
 
+void clean_up(void *arg)
+{
+    printf("THIS IS THE CLEANUP FUNCTION\n");
+    struct circular_buffer *circBuffer = (struct circular_buffer *)arg;
+    pthread_cond_signal(&circBuffer->cond_nonempty);
+    pthread_cond_signal(&circBuffer->cond_nonfull);
+    pthread_mutex_unlock(&circBuffer->bufferlock);
+}
+
 void threadFunc(struct circular_buffer *arg_struct)
 {
 
+    printf("The initial terminate value is: %d\n", terminate);
     printf("Hallo i am a lovely thread\n");
     printf("The buffer size is: %d\n", arg_struct->BufferSize);
     //get the name of the host
@@ -46,10 +57,15 @@ void threadFunc(struct circular_buffer *arg_struct)
     int sock;
     struct sockaddr_in fellow_client;
     struct sockaddr *fellow_clientptr = (struct sockaddr *)&fellow_client;
-
+    pthread_cleanup_push(clean_up, (void *)arg_struct);
     while (1)
     {
         getitem(arg_struct, &temp_object);
+        if (terminate)
+        {
+            printf("Terminating from get item!\n");
+            break;
+        }
         pthread_cond_signal(&arg_struct->cond_nonfull); //Struct isn't full
         printf("\nPOPPED AN ITEM FROM QUEUE\n");
         //check if the object exists inside the client list
@@ -116,10 +132,18 @@ void threadFunc(struct circular_buffer *arg_struct)
                 version = atol(response);
                 temp_object.version = version;
                 putitem(arg_struct, temp_object);
+                if (terminate)
+                {
+                    close(sock);
+                    break;
+                }
                 pthread_cond_signal(&arg_struct->cond_nonempty);
                 printf("FILE INSERTED IN CIRCULAR QUEUE\n");
             }
-            close(sock);
+            if (terminate)
+            {
+                break;
+            }
         }
         else
         {
@@ -200,12 +224,16 @@ void threadFunc(struct circular_buffer *arg_struct)
                 unsigned int filesize = atoi(message);
                 printf("The size of the file going to be written is: %u\n in path: %s\n", filesize, path);
                 createPath(path);
-                fdtoFile(path, sock, 200, filesize);
+                if (fdtoFile(path, sock, 200, filesize))
+                {
+                    printf("\n\n ERROR SENDING FILE \n\n");
+                }
             }
             }
-            close(sock);
         }
+        close(sock);
     }
+    pthread_cleanup_pop(1);
 }
 
 int getMessage(int fd, char *message)

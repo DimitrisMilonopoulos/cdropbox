@@ -1,5 +1,6 @@
 #ifndef _FUNCTIONS_
 #define _FUNCTIONS_
+#include <netdb.h>
 
 char *copySubstring(char *, int);
 int recogniseMessage(char, int newsock);

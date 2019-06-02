@@ -430,6 +430,7 @@ int main(int argc, char **argv)
                             }
                             listdir(info->dirName, i, filePtr);
                             close(i);
+                            fclose(filePtr);
                             break;
                         case 4:
                         { //read the pathname
@@ -498,7 +499,10 @@ int main(int argc, char **argv)
                                         perror("Can't write file length");
                                     }
                                     //sending the file
-                                    copyfile(pathToFile, i, 200);
+                                    if (copyfile(pathToFile, i, 200))
+                                    {
+                                        printf("\n\n ERROR COPYING FILE !!! \n\n");
+                                    }
                                 }
                             }
                             else
@@ -521,6 +525,23 @@ int main(int argc, char **argv)
     }
 
     printf("\nEXITING\n");
+    //closing the threads
+    for (int i = 0; i < info->workerThreads; i++)
+    {
+        if (pthread_cancel(mythreads[i]) != 0)
+        {
+            perror("pthread_cancel() error");
+            exit(3);
+        }
+    }
+    for (int i = 0; i < info->workerThreads; i++)
+    {
+        if (pthread_join(mythreads[i], NULL) != 0)
+        {
+            perror("pthread_join() error");
+            exit(4);
+        }
+    }
     destroyStruct(circBuf);
     free(info);
     if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
