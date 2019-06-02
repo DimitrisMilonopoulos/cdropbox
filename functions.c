@@ -95,10 +95,6 @@ uint32_t copyPort(char *buffer)
 
 int recogniseClientMessage(char first_char, int newsock)
 {
-    //1: LOG_ON
-    //2: GET_CLIENTS
-    //3: LOG_OFF
-    //0:not a valid message
     int amount;
     char *substring;
     char message[30];

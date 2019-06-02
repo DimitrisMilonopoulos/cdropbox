@@ -32,7 +32,7 @@ int getMessage(int fd, char *message);
 
 void clean_up(void *arg)
 {
-    printf("THIS IS THE CLEANUP FUNCTION\n");
+    printf("\nTerminating Thread\n");
     struct circular_buffer *circBuffer = (struct circular_buffer *)arg;
     pthread_cond_signal(&circBuffer->cond_nonempty);
     pthread_cond_signal(&circBuffer->cond_nonfull);
@@ -41,15 +41,10 @@ void clean_up(void *arg)
 
 void threadFunc(struct circular_buffer *arg_struct)
 {
-
-    printf("The initial terminate value is: %d\n", terminate);
-    printf("Hallo i am a lovely thread\n");
-    printf("The buffer size is: %d\n", arg_struct->BufferSize);
     //get the name of the host
     char hostIP[30];
     char hostName[60];
     getIP(hostIP, hostName);
-    printf("\nThe hostname of the THREAD: %s\n", hostName);
     struct BufferObject temp_object;
     struct ip_port temp_client;
     uint32_t network_ip;
@@ -83,8 +78,6 @@ void threadFunc(struct circular_buffer *arg_struct)
         //convert to network byte order
         network_ip = htonl(temp_object.ip);
         network_port = htons(temp_object.port);
-        printf("THREAD: GOING TO CONNECT TO(NBO): %u/%u\n", network_ip, network_port);
-
         //connect to the fellow client to get the file list
         if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
             perror("socket");
@@ -147,7 +140,6 @@ void threadFunc(struct circular_buffer *arg_struct)
         }
         else
         {
-            printf("FILE OPERATION!\n");
             //check if the object exists inside the client list
             temp_client.ip = temp_object.ip;
             temp_client.port = temp_object.port;
@@ -227,6 +219,10 @@ void threadFunc(struct circular_buffer *arg_struct)
                 if (fdtoFile(path, sock, 200, filesize))
                 {
                     printf("\n\n ERROR SENDING FILE \n\n");
+                }
+                else
+                {
+                    printf("File RECEIVED\n");
                 }
             }
             }

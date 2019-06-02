@@ -83,7 +83,6 @@ int main(int argc, char **argv)
     {
         printf("Error\n");
     }
-    printf("The adress in uint is %d\n", server.sin_addr.s_addr);
     if (connect(sock, serverptr, sizeof(server)) < 0)
         perror_exit("connect");
 
@@ -117,23 +116,17 @@ int main(int argc, char **argv)
     FD_SET(cl_sock, &active_fd_set);
     socklen_t size;
     //create threads
-    // pthread_t mythread[2];
-    // pthread_create(&mythread[0], NULL, (void *)threadFunc, circBuf);
-    // pthread_create(&mythread[1], NULL, (void *)threadFunc, circBuf);
     pthread_t mythreads[info->workerThreads];
     for (int i = 0; i < info->workerThreads; i++)
     {
         pthread_create(&mythreads[i], NULL, (void *)threadFunc, circBuf);
     }
 
-    printf("Going to create threads!");
     //convert the ip adress and socket to binary form for transfer
     struct sockaddr_in myaddr;
     inet_aton(ip_buffer, &myaddr.sin_addr);
-    printf("The sin_addr is %u\n", myaddr.sin_addr.s_addr);
     uint32_t ipbinary = myaddr.sin_addr.s_addr; //htonl(myaddr.sin_addr.s_addr); //network compatible
-    printf("The sin_addr is %u\n\n", ipbinary);
-    uint16_t portnet = htons(info->portNum); //htons(info->portNum);
+    uint16_t portnet = htons(info->portNum);    //htons(info->portNum);
 
     //send the log on message to server
     if (write(sock, "LOG_ON", 7) < 0)
@@ -148,13 +141,12 @@ int main(int argc, char **argv)
         perror("write");
     close(sock);
     // shutdown(sock, SHUT_WR);
-    printf("Connecting again\n");
     if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
         perror_exit("socket");
     if (connect(sock, serverptr, sizeof(server)) < 0)
         perror_exit("connect");
     //Get the other clients
-    printf("Getting the clients\n");
+    printf("\nAsking server for client list\n");
     //send the log on message to server
     if (write(sock, "GET_CLIENTS", 12) < 0)
         perror("write");
@@ -179,11 +171,6 @@ int main(int argc, char **argv)
         printf("Invalid response");
     }
     int number_of_clients;
-    // if (read(sock, &number_of_clients, 4) != 4)
-    // {
-    //     perror("read");
-    // }
-    // number_of_clients = ntohl(number_of_clients);
 
     char character;
     char numbuf[10];
@@ -197,9 +184,8 @@ int main(int argc, char **argv)
         numbuf[k] = character;
         k++;
     } while (character != '\0');
-    printf("READ: %s\n", numbuf);
     number_of_clients = atoi(numbuf);
-    printf("Number of clients it is goind to read %d\n", number_of_clients);
+    printf("Number of clients to read %d\n", number_of_clients);
     for (int i = 0; i < number_of_clients; i++)
     {
         struct ip_port *newclient = malloc(sizeof(struct ip_port));
@@ -210,8 +196,7 @@ int main(int argc, char **argv)
         if (read(sock, &newclient->port, 2) != 2)
             perror("read");
         newclient->port = ntohs(newclient->port);
-        printf("New client %u new port %u\n", newclient->ip, newclient->port);
-        printf("Me %u port %u\n", ntohl(ipbinary), ntohs(portnet));
+        printf("Client to add %u / %u\n", newclient->ip, newclient->port);
         if (newclient->ip == ntohl(ipbinary) && newclient->port == ntohs(portnet))
         {
             printf("Client identical\n");
@@ -220,7 +205,6 @@ int main(int argc, char **argv)
         }
         else
         {
-            printf("Inserting new client\n");
             pthread_mutex_lock(&circBuf->listlock);
             InsertNode(clientList, newclient);
             pthread_mutex_unlock(&circBuf->listlock);
@@ -230,60 +214,13 @@ int main(int argc, char **argv)
             object_to_insert.version = 0;
             putitem(circBuf, object_to_insert);
             pthread_cond_signal(&circBuf->cond_nonempty);
+            printf("Client inserted\n");
         }
     }
+    printf("All clients received\n");
 
     close(sock);
     sock = -1;
-    // shutdown(sock, SHUT_WR);
-    printf("Connecting again\n");
-    // if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
-    //     perror_exit("socket");
-    // if (connect(sock, serverptr, sizeof(server)) < 0)
-    //     perror_exit("connect");
-
-    // if (write(sock, "LOG_OFF", 8) < 0)
-    //     perror("write");
-
-    // //send the ip adress
-    // if (write(sock, &ipbinary, 4) < 0)
-    //     perror("write");
-
-    // //send the port number
-    // if (write(sock, &portnet, 2) < 0)
-    //     perror("write");
-    //create the worker threads
-
-    //create the select interface for the client
-
-    // //create the socket for the client
-
-    // struct sockaddr_in cl_server,
-    //     client;
-    // struct sockaddr *cl_serverptr = (struct sockaddr *)&cl_server;
-    // struct sockaddr *clientptr = (struct sockaddr *)&client;
-
-    // int cl_sock;
-    // /* Create socket */
-    // if ((cl_sock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
-    //     perror_exit("socket");
-
-    // cl_server.sin_family = AF_INET;                /* Internet domain */
-    // cl_server.sin_addr.s_addr = htonl(INADDR_ANY); //watch out
-    // cl_server.sin_port = htons(info->portNum);     /* The given port */
-
-    // /* Bind socket to address */
-    // if (bind(cl_sock, cl_serverptr, sizeof(cl_server)) < 0)
-    //     perror_exit("bind");
-    // /* Listen for connections */
-    // if (listen(cl_sock, 15) < 0)
-    //     perror_exit(" listen ");
-
-    // fd_set active_fd_set, read_fd_set;
-    // /* Initialize the set of active sockets. */
-    // FD_ZERO(&active_fd_set);
-    // FD_SET(cl_sock, &active_fd_set);
-    // socklen_t size;
 
     while (1)
     {
@@ -307,7 +244,6 @@ int main(int argc, char **argv)
                 if (i == cl_sock)
                 {
                     /* Connection request on original socket. */
-                    printf("EIIIII found a new connection!\n");
                     int new;
                     size = sizeof(clientptr);
                     new = accept(cl_sock,
@@ -355,7 +291,6 @@ int main(int argc, char **argv)
                             }
                             //newclient->port = htons(newclient->port);
                             newclient->port = ntohs(newclient->port);
-                            printf("\nBefore we insert %u/%u\n", ntohl(ipbinary), ntohs(portnet));
                             if (newclient->port == ntohs(portnet) && newclient->ip == ntohl(ipbinary))
                             {
                                 printf("Same client!\n");
@@ -388,7 +323,6 @@ int main(int argc, char **argv)
                             }
                             tempclient.port = ntohs(tempclient.port);
                             printf("USER_OFF from ip: %u and port: %u\n", tempclient.ip, tempclient.port);
-                            printf("Local USER: %u/%u", ipbinary, portnet);
                             if (tempclient.port == ntohs(portnet) && tempclient.ip == ntohl(ipbinary))
                             {
                                 printf("Same client!\n");
@@ -407,6 +341,7 @@ int main(int argc, char **argv)
                             break;
                         case 3:
                             //Case for the GET_CLIENT_LIST command
+                            printf("\nSending file List!\n");
                             if (write(i, "FILE_LIST", 10) < 0)
                             {
                                 perror("writting file list:");
@@ -466,7 +401,7 @@ int main(int argc, char **argv)
                             char pathToFile[128];
                             strcpy(pathToFile, info->dirName);
                             strcat(pathToFile, pathBuffer);
-                            printf("PATH TO THE FILE TO SEND: %s\n", pathToFile);
+                            printf("PATH OF THE FILE TO SEND: %s\n", pathToFile);
                             if (fileExists(pathToFile))
                             {
                                 if (Receivedtimestamp >= getFileTime(pathToFile))
@@ -516,7 +451,6 @@ int main(int argc, char **argv)
                         }
                         close(i);
                         FD_CLR(i, &active_fd_set);
-                        printf("FILE DESCRIPTOR CLEARED!\n");
                     }
                 }
             }
@@ -585,60 +519,3 @@ void getHostIP(char *buffer)
 
     close(fd);
 }
-
-// void checkHostName(int hostname)
-// {
-//     if (hostname == -1)
-//     {
-//         perror("gethostname");
-//         exit(1);
-//     }
-// }
-
-// // Returns host information corresponding to host name
-// void checkHostEntry(struct hostent *hostentry)
-// {
-//     if (hostentry == NULL)
-//     {
-//         perror("gethostbyname");
-//         exit(1);
-//     }
-// }
-
-// // Converts space-delimited IPv4 addresses
-// // to dotted-decimal format
-// void checkIPbuffer(char *IPbuffer)
-// {
-//     if (NULL == IPbuffer)
-//     {
-//         perror("inet_ntoa");
-//         exit(1);
-//     }
-// }
-
-// // Driver code
-// void getIP(char *buffer)
-// {
-//     char hostbuffer[256];
-//     char *IPbuffer;
-//     struct hostent *host_entry;
-//     int hostname;
-
-//     // To retrieve hostname
-//     hostname = gethostname(hostbuffer, sizeof(hostbuffer));
-//     checkHostName(hostname);
-
-//     // To retrieve host information
-//     host_entry = gethostbyname(hostbuffer);
-//     checkHostEntry(host_entry);
-
-//     // To convert an Internet network
-//     // address into ASCII string
-//     IPbuffer = inet_ntoa(*((struct in_addr *)
-//                                host_entry->h_addr_list[0]));
-
-//     printf("Hostname: %s\n", hostbuffer);
-//     printf("Host IP: %s", IPbuffer);
-
-//     strcpy(buffer, IPbuffer);
-// }

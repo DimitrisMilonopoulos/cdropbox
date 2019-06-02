@@ -56,9 +56,6 @@ int countFiles(char *name, FILE *logPtr, int *Filecounter)
                 continue;
             counter++;
             sprintf(path, "%s/%s", name, entry->d_name);
-            // newprunePath(path, newpath);
-            // strcat(newpath, "/");
-            // printf("Directory: %s\n", newpath);
             countFiles(path, logPtr, Filecounter);
         }
         else
@@ -67,12 +64,6 @@ int countFiles(char *name, FILE *logPtr, int *Filecounter)
             strcpy(newpath, name);
             strcat(newpath, "/");
             strcat(newpath, entry->d_name);
-            // printf("File: %s\n", newpath);
-            //printf("DAFILEFOUND\n");
-            //     if (sendFile(newpath, fd, BUFFERSIZE, logPtr, logFD))
-            //         return -1;
-            // }
-            // printf("File: %s time: %ld\n", newpath, getFileTime(newpath));
             *Filecounter += 1; //File found increment the counter of files
         }
     }
@@ -80,8 +71,6 @@ int countFiles(char *name, FILE *logPtr, int *Filecounter)
     {
         strcpy(newpath, name);
         strcat(newpath, "/");
-        // if (sendFile(newpath, fd, BUFFERSIZE, logPtr, logFD))
-        //     return -1;
         printf("Folder: %s\n", newpath);
     }
     closedir(dir);
@@ -108,9 +97,6 @@ int listdir(char *name, int Socketfd, FILE *logPtr)
                 continue;
             counter++;
             sprintf(path, "%s/%s", name, entry->d_name);
-            // newprunePath(path, newpath);
-            // strcat(newpath, "/");
-            // printf("Directory: %s\n", newpath);
             listdir(path, Socketfd, logPtr);
         }
         else
@@ -119,14 +105,9 @@ int listdir(char *name, int Socketfd, FILE *logPtr)
             strcpy(newpath, name);
             strcat(newpath, "/");
             strcat(newpath, entry->d_name);
-            // printf("File: %s\n", newpath);
-            //printf("DAFILEFOUND\n");
-            //     if (sendFile(newpath, fd, BUFFERSIZE, logPtr, logFD))
-            //         return -1;
-            //
             char prunedpath[128];
             newprunePath(newpath, prunedpath);
-            printf("Sending File: %s time: %ld\n", prunedpath, getFileTime(newpath));
+            printf("Sending FileName: %s version: %ld\n", prunedpath, getFileTime(newpath));
             if (write(Socketfd, &prunedpath, strlen(prunedpath) + 1) < 0)
             {
                 perror("Pathname write:");
@@ -134,7 +115,6 @@ int listdir(char *name, int Socketfd, FILE *logPtr)
             time_t timestamp = getFileTime(newpath);
             char timestamp_string[21];
             sprintf(timestamp_string, "%ld", timestamp);
-            printf("Time to send in string: %s\n", timestamp_string);
             if (write(Socketfd, timestamp_string, strlen(timestamp_string) + 1) < 0)
             {
                 perror("Filetime write");
@@ -145,9 +125,6 @@ int listdir(char *name, int Socketfd, FILE *logPtr)
     {
         strcpy(newpath, name);
         strcat(newpath, "/");
-        // if (sendFile(newpath, fd, BUFFERSIZE, logPtr, logFD))
-        //     return -1;
-        printf("Folder: %s\n", newpath);
     }
     closedir(dir);
     return 0;
@@ -261,19 +238,8 @@ int fdtoFile(char *outname, int indesc, int BUFFSIZE, int fileSize)
         close(outfile);
         return 0;
     }
-    //alarm(wait_amount);
     while ((nread = read(indesc, buffer, readAmount)) > 0)
     {
-        // alarm(0);
-        // if (terminate)
-        // {
-        //     close(fd);
-        //     kill(getppid(), SIGUSR1);
-        //     kill(senderPid, SIGUSR1);
-        //     printf("Fatal error!\n");
-        //     close(outfile);
-        //     return -1;
-        // }
         counter += nread;
         if (fileSize - counter < BUFFSIZE)
         {
@@ -288,7 +254,6 @@ int fdtoFile(char *outname, int indesc, int BUFFSIZE, int fileSize)
         {
             break;
         }
-        // alarm(wait_amount);
     }
 
     if (fileSize != counter)
@@ -314,21 +279,3 @@ int fileExists(char *filename)
         return 0;
     }
 }
-
-// int main(void)
-// {
-//     char cwd[1024];
-//     getcwd(cwd, sizeof(cwd));
-//     FILE *filePtr = fopen(cwd, "r");
-//     if (filePtr == NULL)
-//     {
-//         printf("Error!");
-//     }
-//     listdir("nigga", -1, 0);
-//     int fileCount = 0;
-//     countFiles("nigga", filePtr, &fileCount);
-//     printf("Count files: %d\n", fileCount);
-//     printf("Size : %lu\n", sizeof(time_t));
-//     createPath("./hello/mama/sita/buena/niga.txt");
-//     printf("File exists:%d\n", fileExists("./hello/mama/sita/buena/nigo.txt"));
-// }

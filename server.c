@@ -131,7 +131,6 @@ int main(int argc, char **argv)
                     char first_char;
                     if ((amount = read(i, &first_char, 1)) == 1)
                     {
-                        printf("The message received from the client of length and first char%c: %d\n", first_char, amount);
                         int type = recogniseMessage(first_char, i);
 
                         switch (type)
@@ -158,10 +157,9 @@ int main(int argc, char **argv)
                             close(i);
                             client_ip = ntohl(client_ip);
                             client_port = ntohs(client_port);
-                            printf("ip: %d\nport: %d\n", client_ip, client_port);
+                            printf("ip: %u\nport: %u\n", client_ip, client_port);
                             struct ip_port *entry = malloc(sizeof(struct ip_port));
                             entry->ip = client_ip;
-                            printf("DA CLIENT IP IS: %d\n", client_ip);
                             entry->port = client_port;
                             if (FindNode(connectionList, *entry))
                             {
@@ -178,7 +176,6 @@ int main(int argc, char **argv)
 
                                 struct sockaddr_in newclient;
                                 struct sockaddr *newclientptr = (struct sockaddr *)&newclient;
-                                printf("Going to inform fellow clients!\n");
                                 printf("The client_ip is %u and client_port %u\n\n", client_ip, client_port);
                                 client_ip = htonl(client_ip);
                                 client_port = htons(client_port);
@@ -188,7 +185,6 @@ int main(int argc, char **argv)
                                     temp_ip = htonl(curr->value->ip);
                                     temp_port = htons(curr->value->port);
                                     int client_sock;
-                                    printf("Trying to connect!\n");
                                     if ((client_sock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
                                         perror_exit("socket");
                                     /* Find server address */
@@ -198,7 +194,6 @@ int main(int argc, char **argv)
                                     struct in_addr temp_in = {};
                                     temp_in.s_addr = temp_ip;
                                     newclient.sin_addr = temp_in;
-                                    printf("The adress in uint is %d\n", newclient.sin_addr.s_addr);
                                     if (connect(client_sock, newclientptr, sizeof(newclient)) < 0)
                                         perror_exit("connect");
                                     printf("Connected Successfully!\n");
@@ -223,7 +218,7 @@ int main(int argc, char **argv)
 
                             break;
                         case 2:
-                            printf("Sending to Client %d\n", connectionList->nitems);
+                            printf("Sending Client List to Client, clients: %d\n", connectionList->nitems);
                             //send files to the client
                             // uint32_t numberofClients = htonl(connectionList->nitems);
 
@@ -250,13 +245,11 @@ int main(int argc, char **argv)
                             //     perror("write");
                             char numbuf[10];
                             sprintf(numbuf, "%d", connectionList->nitems);
-                            printf("NUMBER I AM GOING TO SEND: %s\nREAL NUMBER: %d\n", numbuf, connectionList->nitems);
                             if (write(i, numbuf, strlen(numbuf) + 1) < 0)
                                 perror("write");
                             struct Node *curr = connectionList->head;
                             while (curr != NULL)
                             {
-                                printf("HI\n");
                                 client_ip = htonl(curr->value->ip);
                                 client_port = htons(curr->value->port);
                                 printf("Sending Client IP: %u client port: %u\n", curr->value->ip, curr->value->port);
@@ -267,17 +260,11 @@ int main(int argc, char **argv)
 
                                 curr = curr->next;
                             }
-                            printf("Files sent successfully!\n");
+                            printf("Clients sent successfully!\n");
 
                             break;
                         case 3:
-                            printf("SOME NIGGA TRIED TO LOG OFF\n");
-                            // //try to recognise the connection
-                            // if ((rem = gethostbyaddr((char *)&client.sin_addr.s_addr, sizeof(client.sin_addr.s_addr), client.sin_family)) == NULL)
-                            // {
-                            //     herror("gethostbyaddr");
-                            //     exit(1);
-                            // }
+                            printf("\nClient requested log off from server.\n");
                             if ((amount = read(i, &client_ip, 4)) != 4)
                             {
                                 printf("FATAL ERROR!\n");
@@ -295,7 +282,7 @@ int main(int argc, char **argv)
                             temp.port = client_port;
                             client_ip = htonl(client_ip);
                             client_port = htons(client_port);
-                            printf("TEMP IP: %u, port: %u\n", temp.ip, temp.port);
+                            printf("IP: %u, port: %u\n", temp.ip, temp.port);
                             //printList(connectionList);
                             if (DeleteNode(connectionList, &temp))
                             {
@@ -367,59 +354,3 @@ void perror_exit(char *message)
     perror(message);
     exit(EXIT_FAILURE);
 }
-
-// void checkHostName(int hostname)
-// {
-//     if (hostname == -1)
-//     {
-//         perror("gethostname");
-//         exit(1);
-//     }
-// }
-
-// // Returns host information corresponding to host name
-// void checkHostEntry(struct hostent *hostentry)
-// {
-//     if (hostentry == NULL)
-//     {
-//         perror("gethostbyname");
-//         exit(1);
-//     }
-// }
-
-// // Converts space-delimited IPv4 addresses
-// // to dotted-decimal format
-// void checkIPbuffer(char *IPbuffer)
-// {
-//     if (NULL == IPbuffer)
-//     {
-//         perror("inet_ntoa");
-//         exit(1);
-//     }
-// }
-// // Driver code
-// void getIP(char *buffer)
-// {
-//     char hostbuffer[256];
-//     char *IPbuffer;
-//     struct hostent *host_entry;
-//     int hostname;
-
-//     // To retrieve hostname
-//     hostname = gethostname(hostbuffer, sizeof(hostbuffer));
-//     checkHostName(hostname);
-
-//     // To retrieve host information
-//     host_entry = gethostbyname(hostbuffer);
-//     checkHostEntry(host_entry);
-
-//     // To convert an Internet network
-//     // address into ASCII string
-//     IPbuffer = inet_ntoa(*((struct in_addr *)
-//                                host_entry->h_addr_list[0]));
-
-//     printf("Hostname: %s\n", hostbuffer);
-//     printf("Host IP: %s", IPbuffer);
-
-//     strcpy(buffer, IPbuffer);
-// }
